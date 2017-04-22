@@ -112,10 +112,11 @@ class CreateTrainingLMDB:
         size_labels = []
         obj_labels = []
         
-        K = self.__num_classes
+        N = 1
+        K = self.__num_classes * 9
         W = self.__net_size_x / self.__stride
         H = self.__net_size_y / self.__stride
-        inputs = np.zeros((1, K, H, W), dtype=np.float)
+        inputs = np.zeros((N, K, H, W), dtype=np.float)
         
         print inputs.shape
 
