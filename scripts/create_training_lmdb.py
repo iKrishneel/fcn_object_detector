@@ -63,14 +63,17 @@ class CreateTrainingLMDB:
             sys.exit()
 
 
-        self.__shuffle = rospy.get_param('~shuffle', True)
-        self.__num_random = rospy.get_param('~num_random', 10)
-        self.__min_size = rospy.get_param('~min_size', 20)
+        self.__shuffle = rospy.get_param('~shuffle', True) ## shuffle dataset
+        self.__num_random = rospy.get_param('~num_random', 10)  ## number of extra samples
+        self.__min_size = rospy.get_param('~min_size', 20)  ## min box size
 
         ##! network size
-        self.__net_size_x = rospy.get_param('~net_size_x', 640)
-        self.__net_size_y = rospy.get_param('~net_size_y', 480)
-        self.__stride = rospy.get_param('~stride', 16)
+        self.__net_size_x = rospy.get_param('~net_size_x', 640) ## network image cols
+        self.__net_size_y = rospy.get_param('~net_size_y', 480) ## network image rows
+        self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
+        
+        self.__num_classes = rospy.get_param('~num_classes', 3)  ## number of classes
+        
         
         if (self.__net_size_x < 1) or (self.__stride < 16):
             rospy.logfatal('FILE NOT FOUND')
@@ -97,25 +100,10 @@ class CreateTrainingLMDB:
             # self.random_argumentation(img, rect)
 
             self.bounding_box_parameterized_labels(img, rect, self.__stride)
+
             return
             
-            boxes = self.grid_region(img, self.__stride)
-            foreground_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
-            boxes_labels = []
-            size_labels = []
-            obj_labels = []
 
-            for index, b in enumerate(foreground_labels):
-                if b == 1.0:
-                    boxes_labels.append(boxes[index])
-                    size_labels.append([1.0/rect[2], 1.0/rect[3]])
-                    diff = float(boxes[index][2] * boxes[index][3]) / float(rect[2] * rect[3])
-                    obj_labels.append(diff)
-
-            print boxes_labels
-            print size_labels
-            print obj_labels
-            sys.exit()
 
     def bounding_box_parameterized_labels(self, img, rect, stride):
         boxes = self.grid_region(img, self.__stride)
@@ -123,6 +111,13 @@ class CreateTrainingLMDB:
         boxes_labels = []
         size_labels = []
         obj_labels = []
+        
+        K = self.__num_classes
+        W = self.__net_size_x / self.__stride
+        H = self.__net_size_y / self.__stride
+        inputs = np.zeros((1, K, H, W), dtype=np.float)
+        
+        print inputs.shape
 
         for index, b in enumerate(foreground_labels):
             if b == 1.0:
@@ -130,7 +125,9 @@ class CreateTrainingLMDB:
                 size_labels.append([1.0/rect[2], 1.0/rect[3]])
                 diff = float(boxes[index][2] * boxes[index][3]) / float(rect[2] * rect[3])
                 obj_labels.append(diff)
-                    
+                  
+                
+  
         print boxes_labels
         print size_labels
         print obj_labels
