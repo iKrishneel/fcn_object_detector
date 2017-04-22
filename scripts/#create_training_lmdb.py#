@@ -130,7 +130,9 @@ class CreateTrainingLMDB:
                 size_labels.append([1.0/rect[2], 1.0/rect[3]])
                 diff = float(boxes[index][2] * boxes[index][3]) / float(rect[2] * rect[3])
                 obj_labels.append(diff)
-                    
+                  
+                
+  
         print boxes_labels
         print size_labels
         print obj_labels
