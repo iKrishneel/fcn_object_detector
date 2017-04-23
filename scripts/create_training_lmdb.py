@@ -105,33 +105,38 @@ class CreateTrainingLMDB:
             rospy.logfatal("Valid class label not found")
             sys.exit()
 
+
         ## write data
         map_size = 1e12
         lmdb_labels = lmdb.open(str(self.__lmdb_labels), map_size=int(map_size))
         lmdb_images = lmdb.open(str(self.__lmdb_images), map_size=int(map_size))
         with lmdb_labels.begin(write=True) as lab_db, lmdb_images.begin(write=True) as img_db:
             for index, ipath in enumerate(img_path):
+
                 img = cv.imread(str(ipath))
                 rect = rects[index]
                 label = organized_label[index]
-            
+
                 ### check only29 x 49 from (309, 268)
                 ##--------------------------------
-                img = cv.resize(img, (610, 610))
-                rect = (309, 268, 29, 49)
+                # img = cv.resize(img, (610, 610))
+                # rect = (309, 268, 29, 49)
                 ##--------------------------------
 
-                # images, rects = self.random_argumentation(img, rect)
+                images, drects = self.random_argumentation(img, rect)
+                for im, bb in zip(images, drects):
+                    im2, bb2 = self.resize_image_and_labels(im, bb)
+                    data_labels = self.pack_data(im2, bb2, label)
 
-                data_labels = self.pack_data(img, rect, label)
-                
-                ##! write labels
-                lab_datum = caffe.io.array_to_datum(data_labels)
-                lab_db.put('{:0>10d}'.format(index), lab_datum.SerializeToString())
+                    
+                    # ##! write labels
+                    lab_datum = caffe.io.array_to_datum(data_labels)
+                    lab_db.put('{:0>10d}'.format(index), lab_datum.SerializeToString())
 
-                img = img.swapaxes(2, 0)
-                im_datum = caffe.io.array_to_datum(img)
-                img_db.put('{:0>10d}'.format(index), im_datum.SerializeToString())
+                    im3 = im2.swapaxes(2, 0)
+                    
+                    im_datum = caffe.io.array_to_datum(im3)
+                    img_db.put('{:0>10d}'.format(index), im_datum.SerializeToString())
 
 
         lmdb_labels.close()
@@ -289,10 +294,11 @@ class CreateTrainingLMDB:
             
             # print blur_img.shape
             
-            img_flip = blur_img
-            rect_flip = crop_rect
 
-            ### plot only
+            # img_flip = crop_image.copy()
+            # rect_flip = crop_rect
+
+            # ## plot only
             # cv.rectangle(img_flip, (rect_flip[0], rect_flip[1]), \
             #              (rect_flip[0] + rect_flip[2], rect_flip[1] + rect_flip[3]), (0, 255, 0))
             # cv.namedWindow("img", cv.WINDOW_NORMAL)
