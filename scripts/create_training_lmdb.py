@@ -75,8 +75,8 @@ class CreateTrainingLMDB:
         self.__min_size = rospy.get_param('~min_size', 20)  ## min box size
 
         ##! network size
-        self.__net_size_x = rospy.get_param('~net_size_x', 640) ## network image cols
-        self.__net_size_y = rospy.get_param('~net_size_y', 480) ## network image rows
+        self.__net_size_x = rospy.get_param('~net_size_x', 256) ## network image cols
+        self.__net_size_y = rospy.get_param('~net_size_y', 128) ## network image rows
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
         self.__num_classes = None  ## number of classes
@@ -119,8 +119,14 @@ class CreateTrainingLMDB:
 
                 ### check only29 x 49 from (309, 268)
                 ##--------------------------------
-                # img = cv.resize(img, (610, 610))
-                # rect = (309, 268, 29, 49)
+                ## img = cv.resize(img, (610, 610))
+                ## rect = (309, 268, 29, 49)
+                # img = cv.resize(img, (128, 96))
+                # rect = (32, 16, 32, 32)               
+                # print img[:,:,0].shape
+                # data_labels = self.pack_data(img, rect, label)
+                # print data_labels[1:5].shape
+                # sys.exit()
                 ##--------------------------------
 
                 images, drects = self.random_argumentation(img, rect)
@@ -128,12 +134,13 @@ class CreateTrainingLMDB:
                     im2, bb2 = self.resize_image_and_labels(im, bb)
                     data_labels = self.pack_data(im2, bb2, label)
 
-                    
                     # ##! write labels
                     lab_datum = caffe.io.array_to_datum(data_labels)
                     lab_db.put('{:0>10d}'.format(index), lab_datum.SerializeToString())
 
-                    im3 = im2.swapaxes(2, 0)
+                    im3 = im2.copy()
+                    im3 = im3.swapaxes(2, 0)
+                    im3 = im3.swapaxes(2, 1)
                     
                     im_datum = caffe.io.array_to_datum(im3)
                     img_db.put('{:0>10d}'.format(index), im_datum.SerializeToString())
@@ -175,7 +182,7 @@ class CreateTrainingLMDB:
         start = end
         end = start + coverage_label.shape[0]
         data_labels[start:end] = coverage_label
-        
+
         return data_labels
 
 
@@ -209,6 +216,7 @@ class CreateTrainingLMDB:
                     size_labels[k + 2, j, i] = 1.0 / rect[2]
                     size_labels[k + 3, j, i] = 1.0 / rect[3]
                     
+
                     diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
                     obj_labels[k:k+channel_stride, j, i] = diff
                     # obj_labels[k + 1, j, i] = diff
@@ -222,7 +230,7 @@ class CreateTrainingLMDB:
                     
                     foreground_labels[label, j, i] = 1.0
 
-                    #! print k, " ", boxes_labels[k:k+channel_stride, j, i]
+                    # print k, " ", boxes_labels[k:k+channel_stride, j, i]
 
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
         
@@ -298,7 +306,8 @@ class CreateTrainingLMDB:
             # img_flip = crop_image.copy()
             # rect_flip = crop_rect
 
-            # ## plot only
+            ## plot only
+            # print image.shape
             # cv.rectangle(img_flip, (rect_flip[0], rect_flip[1]), \
             #              (rect_flip[0] + rect_flip[2], rect_flip[1] + rect_flip[3]), (0, 255, 0))
             # cv.namedWindow("img", cv.WINDOW_NORMAL)
@@ -375,7 +384,7 @@ class CreateTrainingLMDB:
     Function to overlay a grid on the image and return the boxes
     """     
     def grid_region(self, image, stride):
-        wsize = (image.shape[1]/stride, image.shape[0]/stride)
+        wsize = (image.shape[0]/stride, image.shape[1]/stride)
         
         # boxes = [
         #     np.array([i, j, stride, stride])
