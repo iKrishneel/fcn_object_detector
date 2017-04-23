@@ -72,13 +72,15 @@ class CreateTrainingLMDB:
         self.__net_size_y = rospy.get_param('~net_size_y', 480) ## network image rows
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
-        self.__num_classes = rospy.get_param('~num_classes', 3)  ## number of classes
+        self.__num_classes = None  ## number of classes
         
         
         if (self.__net_size_x < 1) or (self.__stride < 16):
             rospy.logfatal('FILE NOT FOUND')
             sys.exit()
-        
+
+
+        rospy.loginfo("running")
         self.process_data(self.__data_textfile)
         
 
@@ -87,9 +89,19 @@ class CreateTrainingLMDB:
         lines = self.read_textfile(path_to_txt)
         img_path, rects, labels = self.decode_lines(lines)
         
+        # get total class count
+        label_unique, label_indices = np.unique(labels, return_index=False, return_inverse=True, return_counts=False)
+        self.__num_classes = label_unique.shape[0]
+        organized_label = label_indices
+
+        if self.__num_classes is None:
+            rospy.logfatal("Valid class label not found")
+            sys.exit()
+
         for index, ipath in enumerate(img_path):
             img = cv.imread(str(ipath))
             rect = rects[index]
+            label = organized_label[index]
             
             ### check only29 x 49 from (309, 268)
             ##--------------------------------
@@ -99,42 +111,64 @@ class CreateTrainingLMDB:
 
             # self.random_argumentation(img, rect)
 
-            self.bounding_box_parameterized_labels(img, rect, self.__stride)
-
+            self.pack_data(img, rect, label)
             return
             
-
-
-    def bounding_box_parameterized_labels(self, img, rect, stride):
-        boxes = self.grid_region(img, self.__stride)
-        foreground_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
-        boxes_labels = []
-        size_labels = []
-        obj_labels = []
-        
+    def pack_data(self, img, rect, label):
         N = 1
-        K = self.__num_classes * 9
+        K = self.__num_classes * 4  ### 4 is the packing stride
         W = self.__net_size_x / self.__stride
         H = self.__net_size_y / self.__stride
-        inputs = np.zeros((N, K, H, W), dtype=np.float)
+
+        boxes_labels, size_labels, obj_labels, coverage_label = \
+        self.bounding_box_parameterized_labels(img, rect, label, self.__stride)
         
-        print inputs.shape
+        
+        
 
-        for index, b in enumerate(foreground_labels):
-            if b == 1.0:
-                boxes_labels.append(boxes[index])
-                size_labels.append([1.0/rect[2], 1.0/rect[3]])
-                diff = float(boxes[index][2] * boxes[index][3]) / float(rect[2] * rect[3])
-                obj_labels.append(diff)
-                  
-                
-  
         print boxes_labels
-        print size_labels
-        print obj_labels
-        sys.exit()
+        print label
 
 
+    def bounding_box_parameterized_labels(self, img, rect, label, stride):
+        boxes = self.grid_region(img, self.__stride)
+        foreground_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
+
+        channel_stride = 4
+                
+        boxes_labels = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 4
+        size_labels = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 2
+        obj_labels = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 1
+        coverage_label = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 1
+
+        for j in xrange(0, foreground_labels.shape[0], 1):
+            for i in xrange(0, foreground_labels.shape[1], 1):
+                if foreground_labels[j, i] == 1.0:
+                    t = boxes[j, i]
+                    box = np.array([rect[0] - t[0], rect[1] - t[1], (rect[0] + rect[2]) - t[0], (rect[1] + rect[3]) - t[1]])
+                    boxes_labels[0, j, i] =  box[0]
+                    boxes_labels[1, j, i] =  box[1]
+                    boxes_labels[2, j, i] =  box[2]
+                    boxes_labels[3, j, i] =  box[3]
+
+                    size_labels[0, j, i] = 1.0 / rect[2]
+                    size_labels[1, j, i] = 1.0 / rect[3]
+                    size_labels[2, j, i] = 1.0 / rect[2]
+                    size_labels[3, j, i] = 1.0 / rect[3]
+                    
+                    diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
+                    obj_labels[:, j, i] = diff
+                    # obj_labels[1, j, i] = diff
+                    # obj_labels[2, j, i] = diff
+                    # obj_labels[3, j, i] = diff
+
+                    coverage_label[:, j, i] = foreground_labels[j, i]
+                    # coverage_label[1, j, i] = foreground_labels[j, i]
+                    # coverage_label[2, j, i] = foreground_labels[j, i]
+                    # coverage_label[3, j, i] = foreground_labels[j, i]
+                    
+        return (boxes_labels, size_labels, obj_labels, coverage_label)
+        
 
     def resize_image_and_labels(self, image, labels):
         resize_flag = (self.__net_size_x, self.__net_size_y)
@@ -265,12 +299,18 @@ class CreateTrainingLMDB:
     def generate_box_labels(self, image, boxes, rect, label, iou_thresh = FLT_EPSILON_):
         
         jc = JaccardCoeff()
-        box_labels = [
-            FORE_PROB_ if jc.iou(box, rect) > iou_thresh
-            else BACK_PROB_
-            for box in boxes
-        ]
-        return  np.array(box_labels)
+        # box_labels = [
+        #     FORE_PROB_ if jc.iou(box, rect) > iou_thresh
+        #     else BACK_PROB_
+        #     for box in boxes
+        # ]
+        
+        box_labels = np.zeros((boxes.shape[0], boxes.shape[1]))
+        for j in xrange(0, boxes.shape[0], 1):
+            for i in xrange(0, boxes.shape[1], 1):
+                if jc.iou(boxes[j, i], rect) > iou_thresh:
+                    box_labels[j, i] = FORE_PROB_
+        return  box_labels
 
 
     """
@@ -278,12 +318,23 @@ class CreateTrainingLMDB:
     """     
     def grid_region(self, image, stride):
         wsize = (image.shape[1]/stride, image.shape[0]/stride)
-        boxes = [
-            np.array([i, j, stride, stride])
-            for i in xrange(0, image.shape[1], stride)
-            for j in xrange(0, image.shape[0], stride)
-            if (j + stride <= image.shape[0]) and (i + stride <= image.shape[1])
-        ]
+        
+        # boxes = [
+        #     np.array([i, j, stride, stride])
+        #     for i in xrange(0, image.shape[1], stride)
+        #     for j in xrange(0, image.shape[0], stride)
+        #     if (j + stride <= image.shape[0]) and (i + stride <= image.shape[1])
+        # ]
+        
+        boxes = np.zeros((wsize[0], wsize[1], 4))
+        for j in xrange(0, boxes.shape[0], 1):
+            for i in xrange(0, boxes.shape[1], 1):
+                boxes[j][i][0] = (i * stride)
+                boxes[j][i][1] = (j * stride)
+                boxes[j][i][2] = (stride)
+                boxes[j][i][3] = (stride)
+
+
         return boxes
 
     """
