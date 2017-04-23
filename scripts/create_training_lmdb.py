@@ -94,6 +94,9 @@ class CreateTrainingLMDB:
     def process_data(self, path_to_txt):
         
         lines = self.read_textfile(path_to_txt)
+        lines = np.array(lines)
+        np.random.shuffle(lines)
+
         img_path, rects, labels = self.decode_lines(lines)
         
         # get total class count
@@ -147,8 +150,7 @@ class CreateTrainingLMDB:
 
                     # print "size: ", data_labels.shape, " ", im3.shape
                     
-                print "processs: ", ipath
-                
+                print "processs: ", ipath, " ", img.shape
 
         lmdb_labels.close()
         lmdb_images.close()
@@ -286,6 +288,11 @@ class CreateTrainingLMDB:
             rects.append(rect_flip)
 
             ##! flip and save
+            if scale_x < 3:
+                scale_x = 3
+            if scale_y < 3:
+                scale_y = 3
+
             enlarge_factor1 = random.randint(2, scale_x)
             enlarge_factor2 = random.randint(2, scale_y)
             widths = (int(rect_flip[2] * enlarge_factor1), rect_flip[2] * enlarge_factor2)
