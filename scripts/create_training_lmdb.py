@@ -6,6 +6,7 @@ import math
 import lmdb
 import rospy
 import random
+import caffe
 import numpy as np
 import cv2 as cv
 import matplotlib.pylab as plt
@@ -57,9 +58,15 @@ class CreateTrainingLMDB:
     def __init__(self):
         ## contains image path
         self.__data_textfile = '/home/krishneel/Desktop/data/log.txt'  
-        
+        self.__lmdb_labels = '/home/krishneel/Desktop/lmdb/labels'
+        self.__lmdb_images = '/home/krishneel/Desktop/lmdb/features'
+
         if not os.path.isfile(str(self.__data_textfile)):
-            rospy.logfatal('FILE NOT FOUND')
+            rospy.logfatal('datatext filename not found')
+            sys.exit()
+            
+        if not self.__lmdb_labels or not self.__lmdb_images:
+            rospy.logfatal('Provide LMDB filename')
             sys.exit()
 
 
@@ -76,12 +83,12 @@ class CreateTrainingLMDB:
         
         
         if (self.__net_size_x < 1) or (self.__stride < 16):
-            rospy.logfatal('FILE NOT FOUND')
+            rospy.logfatal('Incorrect netsize or stride')
             sys.exit()
-
 
         rospy.loginfo("running")
         self.process_data(self.__data_textfile)
+        ## self.read_lmdb(self.__lmdb_labels)  ## inspection into data
         
 
     def process_data(self, path_to_txt):
@@ -98,81 +105,121 @@ class CreateTrainingLMDB:
             rospy.logfatal("Valid class label not found")
             sys.exit()
 
-        for index, ipath in enumerate(img_path):
-            img = cv.imread(str(ipath))
-            rect = rects[index]
-            label = organized_label[index]
+        ## write data
+        map_size = 1e12
+        lmdb_labels = lmdb.open(str(self.__lmdb_labels), map_size=int(map_size))
+        lmdb_images = lmdb.open(str(self.__lmdb_images), map_size=int(map_size))
+        with lmdb_labels.begin(write=True) as lab_db, lmdb_images.begin(write=True) as img_db:
+            for index, ipath in enumerate(img_path):
+                img = cv.imread(str(ipath))
+                rect = rects[index]
+                label = organized_label[index]
             
-            ### check only29 x 49 from (309, 268)
-            ##--------------------------------
-            img = cv.resize(img, (610, 610))
-            rect = (309, 268, 29, 49)
-            ##--------------------------------
+                ### check only29 x 49 from (309, 268)
+                ##--------------------------------
+                img = cv.resize(img, (610, 610))
+                rect = (309, 268, 29, 49)
+                ##--------------------------------
 
-            # self.random_argumentation(img, rect)
+                # images, rects = self.random_argumentation(img, rect)
 
-            self.pack_data(img, rect, label)
-            return
+                data_labels = self.pack_data(img, rect, label)
+                
+                ##! write labels
+                lab_datum = caffe.io.array_to_datum(data_labels)
+                lab_db.put('{:0>10d}'.format(index), lab_datum.SerializeToString())
+
+                img = img.swapaxes(2, 0)
+                im_datum = caffe.io.array_to_datum(img)
+                img_db.put('{:0>10d}'.format(index), im_datum.SerializeToString())
+
+
+        lmdb_labels.close()
+        lmdb_images.close()
+        rospy.logwarn("done")
+        return
             
     def pack_data(self, img, rect, label):
-        N = 1
-        K = self.__num_classes * 4  ### 4 is the packing stride
-        W = self.__net_size_x / self.__stride
-        H = self.__net_size_y / self.__stride
 
-        boxes_labels, size_labels, obj_labels, coverage_label = \
+        foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
         self.bounding_box_parameterized_labels(img, rect, label, self.__stride)
-        
-        
-        
 
-        print boxes_labels
-        print label
+        ## pack all in one data
+        K = foreground_labels.shape[0] + boxes_labels.shape[0] + size_labels.shape[0] + obj_labels.shape[0] + coverage_label.shape[0]
+        W = boxes_labels.shape[1]
+        H = boxes_labels.shape[2]
+        
+        data_labels = np.zeros((K, W, H))
+
+        start = 0
+        end = start + foreground_labels.shape[0]
+        data_labels[start:end] = foreground_labels
+
+        start = end
+        end = start + boxes_labels.shape[0]
+        data_labels[start:end] = boxes_labels
+
+        start = end
+        end = start + size_labels.shape[0]
+        data_labels[start:end] = size_labels
+
+        start = end
+        end = start + obj_labels.shape[0]
+        data_labels[start:end] = obj_labels
+        
+        start = end
+        end = start + coverage_label.shape[0]
+        data_labels[start:end] = coverage_label
+        
+        return data_labels
 
 
     def bounding_box_parameterized_labels(self, img, rect, label, stride):
         boxes = self.grid_region(img, self.__stride)
-        foreground_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
+        region_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
         
-        channel_stride = 4
+        channel_stride = 4 
         channels = self.__num_classes * channel_stride
-
         
-        print channels
-        sys.exit()
-        
+        foreground_labels = np.zeros((self.__num_classes, boxes.shape[0], boxes.shape[1])) # 1
         boxes_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 4
         size_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 2
         obj_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
         coverage_label = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
 
-        for j in xrange(0, foreground_labels.shape[0], 1):
-            for i in xrange(0, foreground_labels.shape[1], 1):
-                if foreground_labels[j, i] == 1.0:
+        k = label * channel_stride
+
+        for j in xrange(0, region_labels.shape[0], 1):
+            for i in xrange(0, region_labels.shape[1], 1):
+                if region_labels[j, i] == 1.0:
                     t = boxes[j, i]
                     box = np.array([rect[0] - t[0], rect[1] - t[1], (rect[0] + rect[2]) - t[0], (rect[1] + rect[3]) - t[1]])
-                    boxes_labels[0, j, i] =  box[0]
-                    boxes_labels[1, j, i] =  box[1]
-                    boxes_labels[2, j, i] =  box[2]
-                    boxes_labels[3, j, i] =  box[3]
+                    boxes_labels[k + 0, j, i] =  box[0]
+                    boxes_labels[k + 1, j, i] =  box[1]
+                    boxes_labels[k + 2, j, i] =  box[2]
+                    boxes_labels[k + 3, j, i] =  box[3]
 
-                    size_labels[0, j, i] = 1.0 / rect[2]
-                    size_labels[1, j, i] = 1.0 / rect[3]
-                    size_labels[2, j, i] = 1.0 / rect[2]
-                    size_labels[3, j, i] = 1.0 / rect[3]
+                    size_labels[k + 0, j, i] = 1.0 / rect[2]
+                    size_labels[k + 1, j, i] = 1.0 / rect[3]
+                    size_labels[k + 2, j, i] = 1.0 / rect[2]
+                    size_labels[k + 3, j, i] = 1.0 / rect[3]
                     
                     diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
-                    obj_labels[:, j, i] = diff
-                    # obj_labels[1, j, i] = diff
-                    # obj_labels[2, j, i] = diff
-                    # obj_labels[3, j, i] = diff
+                    obj_labels[k:k+channel_stride, j, i] = diff
+                    # obj_labels[k + 1, j, i] = diff
+                    # obj_labels[k + 2, j, i] = diff
+                    # obj_labels[k + 3, j, i] = diff
 
-                    coverage_label[:, j, i] = foreground_labels[j, i]
-                    # coverage_label[1, j, i] = foreground_labels[j, i]
-                    # coverage_label[2, j, i] = foreground_labels[j, i]
-                    # coverage_label[3, j, i] = foreground_labels[j, i]
+                    coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
+                    # coverage_label[k + 1, j, i] = region_labels[j, i]
+                    # coverage_label[k + 2, j, i] = region_labels[j, i]
+                    # coverage_label[k + 3, j, i] = region_labels[j, i]
                     
-        return (boxes_labels, size_labels, obj_labels, coverage_label)
+                    foreground_labels[label, j, i] = 1.0
+
+                    #! print k, " ", boxes_labels[k:k+channel_stride, j, i]
+
+        return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
         
 
     def resize_image_and_labels(self, image, labels):
@@ -375,6 +422,14 @@ class CreateTrainingLMDB:
         ]
         return lines
 
+    def read_lmdb(self, lmdb_fn):
+        in_db = lmdb.open(str(lmdb_fn), readonly=True)
+        with in_db.begin() as txn:
+            raw_datum = txn.get(b'0000000000')
+            datum = caffe.proto.caffe_pb2.Datum()
+            datum.ParseFromString(raw_datum)
+            flat_x = np.fromstring(datum.data, dtype=np.float)
+            print datum
 
 def main(argv):
     try:
