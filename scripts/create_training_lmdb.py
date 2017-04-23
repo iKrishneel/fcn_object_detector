@@ -133,13 +133,18 @@ class CreateTrainingLMDB:
     def bounding_box_parameterized_labels(self, img, rect, label, stride):
         boxes = self.grid_region(img, self.__stride)
         foreground_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
-
+        
         channel_stride = 4
-                
-        boxes_labels = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 4
-        size_labels = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 2
-        obj_labels = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 1
-        coverage_label = np.zeros((channel_stride, boxes.shape[0], boxes.shape[1])) # 1
+        channels = self.__num_classes * channel_stride
+
+        
+        print channels
+        sys.exit()
+        
+        boxes_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 4
+        size_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 2
+        obj_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
+        coverage_label = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
 
         for j in xrange(0, foreground_labels.shape[0], 1):
             for i in xrange(0, foreground_labels.shape[1], 1):
