@@ -57,7 +57,7 @@ class JaccardCoeff:
 class CreateTrainingLMDB:
     def __init__(self):
         ## contains image path
-        self.__data_textfile = '/home/krishneel/Desktop/data/log.txt'  
+        self.__data_textfile = '/home/krishneel/Desktop/log.txt'  
         self.__lmdb_labels = '/home/krishneel/Desktop/lmdb/labels'
         self.__lmdb_images = '/home/krishneel/Desktop/lmdb/features'
 
@@ -75,8 +75,8 @@ class CreateTrainingLMDB:
         self.__min_size = rospy.get_param('~min_size', 20)  ## min box size
 
         ##! network size
-        self.__net_size_x = rospy.get_param('~net_size_x', 256) ## network image cols
-        self.__net_size_y = rospy.get_param('~net_size_y', 128) ## network image rows
+        self.__net_size_x = rospy.get_param('~net_size_x', 448) ## network image cols
+        self.__net_size_y = rospy.get_param('~net_size_y', 448) ## network image rows
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
         self.__num_classes = None  ## number of classes
@@ -145,6 +145,10 @@ class CreateTrainingLMDB:
                     im_datum = caffe.io.array_to_datum(im3)
                     img_db.put('{:0>10d}'.format(index), im_datum.SerializeToString())
 
+                    # print "size: ", data_labels.shape, " ", im3.shape
+                    
+                print "processs: ", ipath
+                
 
         lmdb_labels.close()
         lmdb_images.close()
@@ -312,7 +316,7 @@ class CreateTrainingLMDB:
             #              (rect_flip[0] + rect_flip[2], rect_flip[1] + rect_flip[3]), (0, 255, 0))
             # cv.namedWindow("img", cv.WINDOW_NORMAL)
             # cv.imshow("img", img_flip)
-            # cv.waitKey(0)
+            # cv.waitKey(3)
             
         return images, rects
 
