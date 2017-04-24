@@ -1,0 +1,21 @@
+<launch>
+  <arg name="image" default="/camera/rgb/image_rect_color" />
+  
+  <arg name="detection_threshold" default="0.5" />
+  <arg name="min_boxes" default="3" />
+  <arg name="nms_eps" default="0.2" />
+
+  <arg name="pretrained_weights" default="$(find uav_vehicle_detector)/models/heliport_model/snapshot_iter_750.caffemodel" />
+  <arg name="deployment_prototxt" default="$(find uav_vehicle_detector)/models/heliport_model/heliport_detector.prototxt" />
+  
+ <node pkg="fcn_object_detector" type="fcn_object_detector.py"
+       name="fcn_object_detector" output="screen" >
+   <remap from="image" to="$(arg image)" />
+   <param name="pretrained_weights" value="$(arg pretrained_weights)" />
+   <param name="deployment_prototxt" value="$(arg deployment_prototxt)" />
+
+   <param name="detection_threshold" value="$(arg detection_threshold)" />
+   <param name="min_boxes" value="$(arg min_boxes)" />
+   <param name="nms_eps" value="$(arg nms_eps)" />
+ </node>
+</launch>

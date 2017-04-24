@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+###########################################################################
+## Copyright (C) 2017 by Krishneel Chaudhary @ JSK Lab,
+## The University of Tokyo, Japan
+###########################################################################
+
 import os
 import sys
 import math
@@ -459,7 +464,7 @@ class CreateTrainingLMDB:
 
 def main(argv):
     try:
-        rospy.init_node('fcn_object_detector', anonymous = True)
+        rospy.init_node('create_training_lmdb', anonymous = True)
         ctl = CreateTrainingLMDB()
         rospy.spin()
     except rospy.ROSInterruptException:
