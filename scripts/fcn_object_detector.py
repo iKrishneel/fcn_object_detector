@@ -39,9 +39,9 @@ class FCNObjectDetector:
 
 
         ## temp
-        folder_path = '/home/krishneel/nvcaffe/jobs/multiclass_detectnet/'
+        folder_path = '/home/krishneel/nvcaffe/jobs/multiclass_detectnet/models/16_objects/'
         self.__model_proto = folder_path  + 'deploy.prototxt'
-        self.__weights = folder_path + '/snapshot_iter_2000.caffemodel'
+        self.__weights = folder_path + 'snapshot_iter_4500.caffemodel'
 
 
         if self.is_file_valid():
@@ -66,7 +66,7 @@ class FCNObjectDetector:
         
         caffe.set_device(self.__device_id)
         caffe.set_mode_gpu()
-
+        
         self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', cv_img)
         output = self.__net.forward()
 
@@ -88,12 +88,14 @@ class FCNObjectDetector:
                 for box in obj_boxes:
                     label_color.append((b, g, r))
                     object_boxes.append(box)
+
+                print "label: ", index
             
         label_color = np.asarray(label_color, dtype=np.float)
         object_boxes = np.asarray(object_boxes, dtype=np.int)
 
         if not len(object_boxes):
-            print "not detection"
+            rospy.logwarn("not detection")
             return
 
         object_boxes = self.resize_detection(input_image.shape, object_boxes)
@@ -107,7 +109,7 @@ class FCNObjectDetector:
             ] for box, color in zip(object_boxes, label_color)
         ]
 
-        alpha = 0.5
+        alpha = 0.3
         cv.addWeighted(im_out, alpha, cv_img, 1.0 - alpha, 0, im_out)
     
         cv.namedWindow('detection', cv.WINDOW_NORMAL)
