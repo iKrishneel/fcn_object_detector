@@ -62,7 +62,7 @@ class JaccardCoeff:
 class CreateTrainingLMDB:
     def __init__(self):
         ## contains image path
-        self.__data_textfile = '/home/krishneel/Desktop/log.txt'  
+        self.__data_textfile = '/home/krishneel/Desktop/dataset/train.txt'  
         self.__lmdb_labels = '/home/krishneel/Desktop/lmdb/labels'
         self.__lmdb_images = '/home/krishneel/Desktop/lmdb/features'
 
@@ -99,7 +99,7 @@ class CreateTrainingLMDB:
     def process_data(self, path_to_txt):
         
         lines = self.read_textfile(path_to_txt)
-        lines = np.array(lines)
+        # lines = np.array(lines)
         np.random.shuffle(lines)
 
         img_path, rects, labels = self.decode_lines(lines)
@@ -138,6 +138,10 @@ class CreateTrainingLMDB:
                 ##--------------------------------
 
                 images, drects = self.random_argumentation(img, rect)
+                
+                print len(images)
+
+
                 for im, bb in zip(images, drects):
                     im2, bb2 = self.resize_image_and_labels(im, bb)
                     data_labels = self.pack_data(im2, bb2, label)
@@ -284,7 +288,8 @@ class CreateTrainingLMDB:
         scale_x = int(math.floor(scale_x))
         scale_y = int(math.floor(scale_y))
 
-        for i in xrange(-1, 2, 1):
+        # for i in xrange(-1, 2, 1):
+        for i in xrange(-1, 0, 1):
             flip_flag = random.randint(-1, 1)
             img_flip, rect_flip = self.flip_image(image.copy(), rect, flip_flag)
             
