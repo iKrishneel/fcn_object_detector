@@ -5,8 +5,8 @@
   <arg name="min_boxes" default="3" />
   <arg name="nms_eps" default="0.2" />
 
-  <arg name="pretrained_weights" default="$(find uav_vehicle_detector)/models/heliport_model/snapshot_iter_750.caffemodel" />
-  <arg name="deployment_prototxt" default="$(find uav_vehicle_detector)/models/heliport_model/heliport_detector.prototxt" />
+  <arg name="pretrained_weights" default="$(find fcn_object_detector)/models/snapshot_iter_1000.caffemodel" />
+  <arg name="deployment_prototxt" default="$(find fcn_object_detector)/models/deploy.prototxt" />
   
  <node pkg="fcn_object_detector" type="fcn_object_detector.py"
        name="fcn_object_detector" output="screen" >

@@ -37,12 +37,10 @@ class FCNObjectDetector:
         self.__model_proto = rospy.get_param('~deployment_prototxt', None)
         self.__device_id = rospy.get_param('device_id', 0)
 
-
         ## temp
-        folder_path = '/home/krishneel/nvcaffe/jobs/multiclass_detectnet/models/16_objects/'
-        self.__model_proto = folder_path  + 'deploy.prototxt'
-        self.__weights = folder_path + 'snapshot_iter_4500.caffemodel'
-
+        # # folder_path = '/home/krishneel/nvcaffe/jobs/multiclass_detectnet/models/16_objects/'
+        # self.__model_proto = folder_path  + 'deploy.prototxt'
+        # self.__weights = folder_path + 'snapshot_iter_4500.caffemodel'
 
         if self.is_file_valid():
             self.load_caffe_model()
@@ -88,8 +86,6 @@ class FCNObjectDetector:
                 for box in obj_boxes:
                     label_color.append((b, g, r))
                     object_boxes.append(box)
-
-                print "label: ", index
             
         label_color = np.asarray(label_color, dtype=np.float)
         object_boxes = np.asarray(object_boxes, dtype=np.int)
