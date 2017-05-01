@@ -9,8 +9,8 @@ ROS package for multiclass fully convolutional object detector using pretrained 
  - [ROS Indigo or Kinetic](http://wiki.ros.org/kinetic)
  - [CUDA (8.0 or 7.5)](https://developer.nvidia.com/cuda-downloads)
  - [OpenCV](https://github.com/opencv/opencv)
- - [image_view] (https://github.com/ros-perception/image_pipeline)
- - [Caffe] (https://github.com/BVLC/caffe) 
+ - [image_view](https://github.com/ros-perception/image_pipeline)
+ - [Caffe](https://github.com/BVLC/caffe) 
  
 ### 2.1 Downloading
 Use standard git tools
@@ -34,5 +34,4 @@ To compile the system, use the standard catkin build on ros environment:
 
 # 4 Test data
 
-Download the weights and rosbag file for testing
-https://drive.google.com/a/jsk.imi.i.u-tokyo.ac.jp/file/d/0B5hRAGKTOm_KcEZ1Q0U1S011U3c/view?usp=sharing
+[Download the rosbag file for testing](https://drive.google.com/drive/folders/0B5hRAGKTOm_KQ0lLWmNaSjBwV2s?usp=sharing)
