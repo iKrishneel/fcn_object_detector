@@ -125,23 +125,14 @@ class CreateTrainingLMDB:
                 rect = rects[index]
                 label = organized_label[index]
 
-                ### check only29 x 49 from (309, 268)
-                ##--------------------------------
-                ## img = cv.resize(img, (610, 610))
-                ## rect = (309, 268, 29, 49)
-                # img = cv.resize(img, (128, 96))
-                # rect = (32, 16, 32, 32)               
-                # print img[:,:,0].shape
-                # data_labels = self.pack_data(img, rect, label)
-                # print data_labels[1:5].shape
-                # sys.exit()
-                ##--------------------------------
+                print "processs: ", ipath, " ", img.shape
+
+                widths = ([img.shape[1]/4, img.shape[1]/4])
+                heights = ([img.shape[0]/4, img.shape[0]/4])
+                img, rect = self.crop_image_dimension(img, rect, widths, heights)
 
                 images, drects = self.random_argumentation(img, rect)
                 
-                print len(images)
-
-
                 for im, bb in zip(images, drects):
                     im2, bb2 = self.resize_image_and_labels(im, bb)
                     data_labels = self.pack_data(im2, bb2, label)
@@ -159,7 +150,6 @@ class CreateTrainingLMDB:
 
                     # print "size: ", data_labels.shape, " ", im3.shape
                     
-                print "processs: ", ipath, " ", img.shape
 
         lmdb_labels.close()
         lmdb_images.close()
