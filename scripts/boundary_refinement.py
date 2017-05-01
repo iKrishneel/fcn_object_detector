@@ -27,19 +27,22 @@ class BoundaryRefinement:
         self.__weights = rospy.get_param('~pretrained_weights', None)
         self.__model_proto = rospy.get_param('~deployment_prototxt', None)
         self.__device_id = rospy.get_param('device_id', 0)
-        self.__prob_thresh = rospy.get_param('~detection_threshold', 0.5)  #! threshold for masking the detection
-        self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
+        self.__prob_thresh = rospy.get_param('~detection_threshold', 0.8)  #! threshold for masking the detection
+        self.__min_bbox_thresh = rospy.get_param('~min_boxes', 1) #! minimum bounding box
         self.__group_eps_thresh = rospy.get_param('~nms_eps', 0.2) #! bbox grouping        
         ##! temp
-        folder_path = '/home/krishneel/nvcaffe/jobs/tracknet/'
-        self.__model_proto = folder_path  + 'deploy.prototxt'  
-        self.__weights =  folder_path + '/snapshot_iter_40000.caffemodel'
+        # folder_path = '/home/krishneel/nvcaffe/jobs/tracknet/'
+        # self.__model_proto = folder_path  + 'deploy.prototxt'  
+        # self.__weights =  folder_path + '/snapshot_iter_40000.caffemodel'
+
+        folder_path = '/home/krishneel/Documents/programs/GOTURN/nets/'
+        self.__model_proto = folder_path  + 'tracker.prototxt'  
+        self.__weights =  folder_path + 'models/pretrained_model/tracker.caffemodel'
         
         if self.is_file_valid():
             self.load_caffe_model()
-            rospy.loginfo('DETECTOR SETUP SUCCESSFUL')
+            rospy.loginfo('Boundary Refining Node Loaded')
             
-        
         self.__prev_image__ = None
         self.subscribe()
 
@@ -58,17 +61,16 @@ class BoundaryRefinement:
         caffe.set_device(self.__device_id)
         caffe.set_mode_gpu()
 
-
         x1 = rect_msg.polygon.points[0].x
         y1 = rect_msg.polygon.points[0].y
         x2 = rect_msg.polygon.points[1].x
         y2 = rect_msg.polygon.points[1].y
         
-        factor = 2
-        tlx = int(x1 - (x2-x1)/2.0)
-        tly = int(y1 - (y2-y1)/2.0)
-        brx = int(x2 + (x2-x1)/2.0)
-        bry = int(y2 + (y2-y1)/2.0)
+        factor = 2.50
+        tlx = int(x1 - (x2-x1)/factor)
+        tly = int(y1 - (y2-y1)/factor)
+        brx = int(x2 + (x2-x1)/factor)
+        bry = int(y2 + (y2-y1)/factor)
         
         x1 = 0 if tlx < 0 else tlx
         y1 = 0 if tly < 0 else tly
@@ -76,43 +78,59 @@ class BoundaryRefinement:
         y2 = cv_img.shape[0] if bry > cv_img.shape[0] else bry
 
         curr_roi = cv_img[y1:y2, x1:x2].copy()
+        im_roi = curr_roi.copy()
 
+        curr_roi = cv.resize(curr_roi, (self.__im_width, self.__im_height))
+        
         if self.__prev_image__ is None:
             self.__prev_image__ = curr_roi.copy()
+            return
         
-        self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', curr_roi)
-        self.__net.blobs['data_template'].data[...] = self.__transformer2.preprocess('data_template', self.__prev_image__)
+        self.__net.blobs['image'].data[...] = self.__transformer.preprocess('image', curr_roi)
+        self.__net.blobs['target'].data[...] = self.__transformer2.preprocess('target', self.__prev_image__)
+
         output = self.__net.forward()
         
-        probability_map = self.__net.blobs['coverage'].data[0]
-        bbox_map = self.__net.blobs['bboxes'].data[0]
+        # probability_map = self.__net.blobs['coverage'].data[0]
+        # bbox_map = self.__net.blobs['bboxes'].data[0]
 
-        print probability_map.shape
-        print bbox_map.shape
+        # propose_boxes, propose_cvgs, mask = self.gridbox_to_boxes(probability_map, bbox_map, 0.5)
+        # object_boxes = self.vote_boxes(propose_boxes, propose_cvgs, mask)
+        # object_boxes = np.asarray(object_boxes, dtype=np.float16)
+        
+        
+        box_coord = self.__net.blobs['fc8'].data[0]
+        box_coord /= 10.0
+        box_coord[0] *= self.__im_width
+        box_coord[1] *= self.__im_height  
+        box_coord[2] *= self.__im_width
+        box_coord[3] *= self.__im_height
 
-        propose_boxes, propose_cvgs, mask = self.gridbox_to_boxes(probability_map, bbox_map, 0.5)
-        object_boxes = self.vote_boxes(propose_boxes, propose_cvgs, mask)
-        object_boxes = np.asarray(object_boxes, dtype=np.float16)
+        box_coord = self.resize_detection(im_roi.shape, box_coord)
         
-        self.resize_detection(curr_roi.shape, object_boxes)
+        x1 = box_coord[0]
+        y1 = box_coord[1]
+        x2 = box_coord[2]
+        y2 = box_coord[3]
         
-        print object_boxes
-        # self.vis_square(probability_map)
+        print box_coord
         
-        # feat = feat[0].astype(np.float)
-        # cv.imshow("feat", feat)
-
         ##! update the prev template
-        # self.__prev_image__ = curr_roi.copy()
-        print object_boxes.shape[0]
-        if object_boxes.shape[0] > 0:
-            x1 = int(object_boxes[0][0])
-            y1 = int(object_boxes[0][1])
-            x2 = x1 + int(object_boxes[0][2])
-            y2 = y1 + int(object_boxes[0][3])
-            cv.rectangle(curr_roi, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
-        # # cv.imshow("img", cv_img)
-        cv.imshow("img", curr_roi)
+        self.__prev_image__ = curr_roi.copy()
+
+        # print object_boxes.shape[0]
+        # if object_boxes.shape[0] > 0:
+        #     x1 = int(object_boxes[0][0])
+        #     y1 = int(object_boxes[0][1])
+        #     x2 = x1 + int(object_boxes[0][2])
+        #     y2 = y1 + int(object_boxes[0][3])
+        #     cv.rectangle(curr_roi, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
+        # # # cv.imshow("img", cv_img)
+
+
+        cv.rectangle(im_roi, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
+        cv.namedWindow("img", cv.WINDOW_NORMAL)
+        cv.imshow("img", im_roi)
         cv.waitKey(5)
 
 
@@ -176,11 +194,10 @@ class BoundaryRefinement:
         diffx = float(in_size[1])/float(self.__im_width)
         diffy = float(in_size[0])/float(self.__im_height)
         resize_bbox = bbox
-        for index, box in enumerate(bbox):
-            resize_bbox[index, 0] = box[0] * diffx
-            resize_bbox[index, 1] = box[1] * diffy
-            resize_bbox[index, 2] = box[2] * diffx
-            resize_bbox[index, 3] = box[3] * diffy 
+        resize_bbox[0] = bbox[0] * diffx
+        resize_bbox[1] = bbox[1] * diffy
+        resize_bbox[2] = bbox[2] * diffx
+        resize_bbox[3] = bbox[3] * diffy 
         return resize_bbox
 
 
@@ -207,22 +224,22 @@ class BoundaryRefinement:
         rospy.loginfo('LOADING CAFFE MODEL..')
         self.__net = caffe.Net(self.__model_proto, self.__weights, caffe.TEST)
         
-        self.__transformer = caffe.io.Transformer({'data': self.__net.blobs['data'].data.shape})
-        self.__transformer.set_transpose('data', (2,0,1))
-        self.__transformer.set_raw_scale('data', 1)
-        self.__transformer.set_channel_swap('data', (2,1,0))
+        self.__transformer = caffe.io.Transformer({'image': self.__net.blobs['image'].data.shape})
+        self.__transformer.set_transpose('image', (2,0,1))
+        self.__transformer.set_raw_scale('image', 1)
+        self.__transformer.set_channel_swap('image', (2,1,0))
 
-        self.__transformer2 = caffe.io.Transformer({'data_template': self.__net.blobs['data_template'].data.shape})
-        self.__transformer2.set_transpose('data_template', (2,0,1))
-        self.__transformer2.set_raw_scale('data_template', 1)
-        self.__transformer2.set_channel_swap('data_template', (2,1,0))
+        self.__transformer2 = caffe.io.Transformer({'target': self.__net.blobs['target'].data.shape})
+        self.__transformer2.set_transpose('target', (2,0,1))
+        self.__transformer2.set_raw_scale('target', 1)
+        self.__transformer2.set_channel_swap('target', (2,1,0))
 
-        shape = self.__net.blobs['data'].data.shape
+        shape = self.__net.blobs['image'].data.shape
         self.__im_height = shape[2]
         self.__im_width = shape[3]
 
-        self.__net.blobs['data'].reshape(1, 3, self.__im_height, self.__im_width)
-        self.__net.blobs['data_template'].reshape(1, 3, self.__im_height, self.__im_width)
+        self.__net.blobs['image'].reshape(1, 3, self.__im_height, self.__im_width)
+        self.__net.blobs['target'].reshape(1, 3, self.__im_height, self.__im_width)
 
     def is_file_valid(self):
         if self.__model_proto is None or \
