@@ -1,19 +1,21 @@
+FCN_OBJECT_DETECTOR
+==================================
 
-# FCN_OBJECT_DETECTOR
+Info
+--------
+.. ROS package for multiclass fully convolutional object detector using pretrained network.
 
-#1. Info
-ROS package for multiclass fully convolutional object detector using pretrained network.
-
-#2. Building the System
-###2.1 Requirements
+Building the System
+--------
+.. Requirements
  - [ROS Indigo or Kinetic](http://wiki.ros.org/kinetic)
  - [CUDA (8.0 or 7.5)](https://developer.nvidia.com/cuda-downloads)
  - [OpenCV](https://github.com/opencv/opencv)
  - [image_view] (https://github.com/ros-perception/image_pipeline)
  - [Caffe] (https://github.com/BVLC/caffe) 
  
-###2.1 Downloading
-Use standard git tools
+
+
 ```
   $ git clone https://github.com/iKrishneel/fcn_object_detector.git
 
