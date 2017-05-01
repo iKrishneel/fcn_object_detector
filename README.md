@@ -1,5 +1,5 @@
 
-# FCN_OBJECT_DETECTOR
+# fcn_object_detector
 
 # 1. Info
 ROS package for multiclass fully convolutional object detector using pretrained network.
