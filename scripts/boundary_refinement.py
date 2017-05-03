@@ -44,9 +44,79 @@ class BoundaryRefinement:
             rospy.loginfo('Boundary Refining Node Loaded')
             
         self.__prev_image__ = None
-        self.subscribe()
 
+        is_online = False
+        if is_online:
+            self.subscribe()
+        else:
+            self.__dataset_lists = "/home/krishneel/Desktop/dataset/cheezit/train.txt"
+            if self.__dataset_lists is None:
+                rospy.logfatal('PROVIDE DATASET LABELS AND LIST!')
+                sys.exit()
 
+            self.boundary_refinement()
+                
+    def boundary_refinement(self):
+        caffe.set_device(0)
+        caffe.set_mode_gpu()
+        
+        lists = self.read_textfile(self.__dataset_lists)
+        img_path, rects, labels = self.decode_lines(lists)
+
+        prev_image = None
+        prev_rect = None
+        for index, ipath in enumerate(img_path):
+            image = cv.imread(str(ipath))
+            rect = rects[index]
+            
+            factor = 2.250
+            tlx = int(rect[0] - rect[2]/factor)
+            tly = int(rect[1] - rect[3]/factor)
+            brx = int((rect[0] + rect[2]) + rect[2]/factor)
+            bry = int((rect[1] + rect[3]) + rect[3]/factor)
+        
+            x1 = 0 if tlx < 0 else tlx
+            y1 = 0 if tly < 0 else tly
+            x2 = image.shape[1] if brx > image.shape[1] else brx
+            y2 = image.shape[0] if bry > image.shape[0] else bry
+        
+            img = image[y1:y2, x1:x2].copy()
+            img = cv.resize(img, (self.__im_width, self.__im_height))
+            if index is 0:
+                im_templ = img.copy()
+                prev_rect = rect
+                prev_image = image.copy()
+            else:
+                
+                
+                self.__net.blobs['target'].data[...] = self.__transformer2.preprocess('target', im_templ)
+                self.__net.blobs['image'].data[...] = self.__transformer.preprocess('image', img)
+
+                output = self.__net.forward()
+
+                box_coord = self.__net.blobs['fc8'].data[0]
+                box_coord /= 10.0
+                box_coord[0] *= self.__im_width
+                box_coord[1] *= self.__im_height  
+                box_coord[2] *= self.__im_width
+                box_coord[3] *= self.__im_height
+
+                box_coord = self.resize_detection(img.shape, box_coord)
+        
+                x1 = box_coord[0]
+                y1 = box_coord[1]
+                x2 = box_coord[2]
+                y2 = box_coord[3]
+
+                
+                
+                cv.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
+                cv.namedWindow("img", cv.WINDOW_NORMAL)
+                cv.imshow("img", img)
+                cv.waitKey(5)
+
+        
+        
     def callback(self, image_msg, rect_msg):
         cv_img = None
         try:
@@ -66,7 +136,7 @@ class BoundaryRefinement:
         x2 = rect_msg.polygon.points[1].x
         y2 = rect_msg.polygon.points[1].y
         
-        factor = 2.50
+        factor = 2.250
         tlx = int(x1 - (x2-x1)/factor)
         tly = int(y1 - (y2-y1)/factor)
         brx = int(x2 + (x2-x1)/factor)
@@ -200,8 +270,27 @@ class BoundaryRefinement:
         resize_bbox[3] = bbox[3] * diffy 
         return resize_bbox
 
+    def read_textfile(self, path_to_txt):
+        lines = [line.rstrip('\n')
+                 for line in open(path_to_txt)
+        ]
+        return lines
 
-
+    def decode_lines(self, lines):
+        img_path = []
+        rects = []
+        labels = []
+        for line in lines:
+            line_val = line.split()
+            img_path.append(line_val[0])
+            rect = []
+            for i in xrange(1, len(line_val)-1, 1):
+                rect.append(int(line_val[i]))
+            rects.append(rect)
+            labels.append(int(line_val[-1]))
+            
+        return np.array(img_path), np.array(rects), np.array(labels)
+        
     def subscribe(self):
         image_sub = message_filters.Subscriber('/camera/rgb/image_rect_color', Image)
         rect_sub = message_filters.Subscriber('/object_rect', Rect)

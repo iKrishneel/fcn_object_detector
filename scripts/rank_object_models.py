@@ -32,7 +32,14 @@ class RankObjectProposal:
         
         ##! similarity index
         self.__similarity_distance = rospy.get_param('~similarity_distance', 0.4)
-    
+
+        self.__distance_metric = None
+        (major, minor, _) = cv.__version__.split(".")
+        if major < str(3):
+            self.__distance_metric = cv.cv.CV_COMP_BHATTACHARYYA
+        elif major >= str(3):
+            self.__distance_metric = cv.HISTCMP_BHATTACHARYYA
+        
         if self.is_file_valid():
             self.load_caffe_model()
             rospy.loginfo('DETECTOR SETUP SUCCESSFUL')
@@ -43,8 +50,8 @@ class RankObjectProposal:
         self.__dataset_labels = rospy.get_param('~dataset_labels', None)
         self.__dataset_lists = rospy.get_param('~dataset_labels', None)
         
-        self.__dataset_labels = "/home/krishneel/Desktop/dataset/ismar_mug/"
-        self.__dataset_lists = "/home/krishneel/Desktop/dataset/ismar_mug/train.txt"
+        self.__dataset_labels = "/home/krishneel/Desktop/dataset/oreo/"
+        self.__dataset_lists = "/home/krishneel/Desktop/dataset/oreo/train.txt"
 
         if self.__dataset_labels is None or self.__dataset_lists is None:
             rospy.logfatal('PROVIDE DATASET LABELS AND LIST!')
@@ -89,10 +96,11 @@ class RankObjectProposal:
             ## relation templ->i,templ->(i+1), i->i+1
             feature_map1 = self.get_cnn_codes(im_roi1)
             feature_map2 = self.get_cnn_codes(im_roi2)
-        
-            sa = cv.compareHist(feature_map, feature_map1, cv.HISTCMP_BHATTACHARYYA)
-            sb = cv.compareHist(feature_map, feature_map2, cv.HISTCMP_BHATTACHARYYA)
-            sc = cv.compareHist(feature_map1, feature_map2, cv.HISTCMP_BHATTACHARYYA)
+
+            
+            sa = cv.compareHist(feature_map, feature_map1, self.__distance_metric)
+            sb = cv.compareHist(feature_map, feature_map2, self.__distance_metric)
+            sc = cv.compareHist(feature_map1, feature_map2, self.__distance_metric)
         
             if sa < self.__similarity_distance and \
                sb < self.__similarity_distance and \
@@ -104,10 +112,8 @@ class RankObjectProposal:
                 rospy.logwarn('dissimilar: %s', img_path[i])
                 print "dist: ", sa, " ", sb, " ", sc
 
-                
-
-            plt.plot(feature_map)
-            plt.pause(0.09)
+            # plt.plot(feature_map)
+            # plt.pause(0.09)
 
             cv.imshow("img", im_roi1)
             cv.imshow("img2", im_roi2)
