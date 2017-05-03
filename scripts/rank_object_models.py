@@ -49,9 +49,10 @@ class RankObjectProposal:
 
         self.__dataset_labels = rospy.get_param('~dataset_labels', None)
         self.__dataset_lists = rospy.get_param('~dataset_labels', None)
-        
-        self.__dataset_labels = "/home/krishneel/Desktop/dataset/oreo/"
-        self.__dataset_lists = "/home/krishneel/Desktop/dataset/oreo/train.txt"
+
+        object_name = "tub/"
+        self.__dataset_labels = "/home/krishneel/Desktop/dataset/" + str(object_name)
+        self.__dataset_lists = "/home/krishneel/Desktop/dataset/" + str(object_name) +  "train.txt"
 
         if self.__dataset_labels is None or self.__dataset_lists is None:
             rospy.logfatal('PROVIDE DATASET LABELS AND LIST!')
@@ -66,7 +67,6 @@ class RankObjectProposal:
         caffe.set_device(0)
         caffe.set_mode_gpu()
         
-        # labels = self.read_textfile(self.__dataset_labels)
         lists = self.read_textfile(self.__dataset_lists)
         
         labels = []
@@ -80,17 +80,27 @@ class RankObjectProposal:
         im_templ = im_templ[rect[1]:rect[1]+rect[3], rect[0]:rect[0]+rect[2]]
 
         feature_map = self.get_cnn_codes(im_templ)
-        update_rate = 0.2
+        update_rate = 0.1
         count = 0
 
+
+        ##! write data
+        text_file = open(str(self.__dataset_labels + "train2.txt"), "w")
+        
         for i in xrange(1, len(img_path) - 1, 1):
             print i
             im_roi1 = cv.imread(str(img_path[i]))
             rect = rects[i]
+            if rect[2] < 0 or rect[3] < 0 or len(im_roi1.shape) < 3:
+                break
             im_roi1 = im_roi1[rect[1]:rect[1]+rect[3], rect[0]:rect[0]+rect[2]]
             
             im_roi2 = cv.imread(str(img_path[i+1]))
             rect = rects[i+1]
+
+            if rect[2] < 0 or rect[3] < 0 or len(im_roi2.shape) < 3:
+                break
+            
             im_roi2 = im_roi2[rect[1]:rect[1]+rect[3], rect[0]:rect[0]+rect[2]]
 
             ## relation templ->i,templ->(i+1), i->i+1
@@ -107,6 +117,8 @@ class RankObjectProposal:
                sc < self.__similarity_distance:
                 feature_map = feature_map * (1.0 - update_rate) + feature_map1 * update_rate
 
+                text_file.write(img_path[i] + " " + str(rect[0]) + " " + str(rect[1]) +" "\
+                                + str(rect[2]) +" " + str(rect[3]) + " "+ str(labels[i]) + "\n")
             else:
                 count += 1
                 rospy.logwarn('dissimilar: %s', img_path[i])
@@ -117,8 +129,9 @@ class RankObjectProposal:
 
             cv.imshow("img", im_roi1)
             cv.imshow("img2", im_roi2)
-            cv.waitKey(0)
+            cv.waitKey(3)
         print "TOTAL REJECTED: ", count
+        text_file.close()
 
     def get_cnn_codes(self, image):
         self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', image)

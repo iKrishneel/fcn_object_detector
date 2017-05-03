@@ -14,9 +14,9 @@ from cv_bridge import CvBridge
 class ImageRectWriter:
     def __init__(self):
         self.__write_path = '/home/krishneel/Desktop/dataset/'
-        self.__obj_name = 'tissue/'
+        self.__obj_name = 'remote-box/'
         self.__text_filename = 'train.txt'
-        self.__label = 4
+        self.__label = 12
         self.__bridge = CvBridge()
         self.__counter = 0
 

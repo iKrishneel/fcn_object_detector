@@ -17,8 +17,10 @@ import matplotlib.pylab as plt
 class BoundaryRefinement:
     def __init__(self):
         self.__net = None
+        self.__net2 = None
         self.__transformer = None
         self.__transformer2 = None
+        self.__transformer3 = None
         self.__im_width = None
         self.__im_height = None
 
@@ -42,7 +44,14 @@ class BoundaryRefinement:
         if self.is_file_valid():
             self.load_caffe_model()
             rospy.loginfo('Boundary Refining Node Loaded')
-            
+
+        ## load check net
+        caffe_root = os.environ['CAFFE_ROOT'] + '/'
+        prototxt = caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt'
+        caffemodel = caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel'
+        self.load_caffe_model2(prototxt, caffemodel)
+        self.__similarity_distance = 0.350
+        
         self.__prev_image__ = None
 
         is_online = False
@@ -69,7 +78,7 @@ class BoundaryRefinement:
             image = cv.imread(str(ipath))
             rect = rects[index]
             
-            factor = 2.250
+            factor = 2.0
             tlx = int(rect[0] - rect[2]/factor)
             tly = int(rect[1] - rect[3]/factor)
             brx = int((rect[0] + rect[2]) + rect[2]/factor)
@@ -87,7 +96,6 @@ class BoundaryRefinement:
                 prev_rect = rect
                 prev_image = image.copy()
             else:
-                
                 
                 self.__net.blobs['target'].data[...] = self.__transformer2.preprocess('target', im_templ)
                 self.__net.blobs['image'].data[...] = self.__transformer.preprocess('image', img)
@@ -108,12 +116,36 @@ class BoundaryRefinement:
                 x2 = box_coord[2]
                 y2 = box_coord[3]
 
-                
+                ## update based on similarity
+                im_prev = prev_image[prev_rect[1]:prev_rect[1]+prev_rect[3], prev_rect[0]:prev_rect[0]+prev_rect[2]].copy()
+                im_cur = image[rect[1]:rect[1]+rect[3], rect[0]:rect[0]+rect[2]].copy()
+                feature_map1 = self.get_cnn_codes(im_prev)
+                feature_map2 = self.get_cnn_codes(im_cur)
+                dist = cv.compareHist(feature_map1, feature_map2, cv.cv.CV_COMP_BHATTACHARYYA)
+                if dist < 0.3:
+                    prev_image = image.copy()
+                    rect = [x1, y1, x2-x1, y2-y1]
+                    tlx = int(rect[0] - rect[2]/factor)
+                    tly = int(rect[1] - rect[3]/factor)
+                    brx = int((rect[0] + rect[2]) + rect[2]/factor)
+                    bry = int((rect[1] + rect[3]) + rect[3]/factor)
+        
+                    x1 = 0 if tlx < 0 else tlx
+                    y1 = 0 if tly < 0 else tly
+                    x2 = img.shape[1] if brx > img.shape[1] else brx
+                    y2 = img.shape[0] if bry > img.shape[0] else bry 
+                    rect = [x1, y1, x2-x1, y2-y1]                   
+                    prev_rect = rect
+                    im_templ = img[y1:y2, x1:x2].copy()
+
                 
                 cv.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
                 cv.namedWindow("img", cv.WINDOW_NORMAL)
                 cv.imshow("img", img)
-                cv.waitKey(5)
+
+                cv.namedWindow("img_templ", cv.WINDOW_NORMAL)
+                cv.imshow("img_templ", im_templ)
+                cv.waitKey(3)
 
         
         
@@ -330,6 +362,23 @@ class BoundaryRefinement:
         self.__net.blobs['image'].reshape(1, 3, self.__im_height, self.__im_width)
         self.__net.blobs['target'].reshape(1, 3, self.__im_height, self.__im_width)
 
+    def load_caffe_model2(self, model_proto, weights):
+        rospy.loginfo('LOADING CAFFE MODEL2..')
+        self.__net2 = caffe.Net(model_proto, weights, caffe.TEST)
+
+        self.__transformer3 = caffe.io.Transformer({'data': self.__net2.blobs['data'].data.shape})
+        self.__transformer3.set_transpose('data', (2,0,1))
+        self.__transformer3.set_raw_scale('data', 255)
+        self.__transformer3.set_channel_swap('data', (2,1,0))
+        
+        self.__net2.blobs['data'].reshape(1, 3, self.__im_height, self.__im_width)
+
+    def get_cnn_codes(self, image):
+        self.__net2.blobs['data'].data[...] = self.__transformer3.preprocess('data', image)
+        output = self.__net2.forward()
+        feature_map = self.__net2.blobs['fc7'].data[0]
+        return feature_map.copy()
+        
     def is_file_valid(self):
         if self.__model_proto is None or \
            self.__weights is None:
