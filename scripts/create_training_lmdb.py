@@ -85,7 +85,7 @@ class CreateTrainingLMDB:
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
         ##! if only roi cropped dataset
-        self.__only_roi = rospy.get_param('~only_roi', True)
+        self.__only_roi = rospy.get_param('~only_roi', False)
 
         self.__num_classes = None  ## number of classes
         
@@ -95,7 +95,7 @@ class CreateTrainingLMDB:
 
         rospy.loginfo("running")
         self.process_data(self.__data_textfile)
-        self.read_lmdb(self.__lmdb_images)  ## inspection into data
+        # self.read_lmdb(self.__lmdb_images)  ## inspection into data
         
 
     def process_data(self, path_to_txt):
@@ -152,6 +152,7 @@ class CreateTrainingLMDB:
                         lab_db.put('{:0>10d}'.format(counter), lab_datum.SerializeToString())
 
                         im3 = im2.copy()
+                        im3 = self.demean_rgb_image(im3)
                         im3 = im3.swapaxes(2, 0)
                         im3 = im3.swapaxes(2, 1)
                     
