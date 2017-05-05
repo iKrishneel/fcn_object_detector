@@ -64,12 +64,16 @@ class FCNObjectDetector:
         
         caffe.set_device(self.__device_id)
         caffe.set_mode_gpu()
-        
+
+        cv_img = self.demean_rgb_image(cv_img)
+        cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
         self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', cv_img)
         output = self.__net.forward()
 
         probability_map = self.__net.blobs['coverage'].data[0]
         bbox_map = self.__net.blobs['bboxes'].data[0]
+
+        self.vis_square(probability_map)
 
         object_boxes = []
         label_color = []
@@ -86,6 +90,8 @@ class FCNObjectDetector:
                 for box in obj_boxes:
                     label_color.append((b, g, r))
                     object_boxes.append(box)
+
+                print index
             
         label_color = np.asarray(label_color, dtype=np.float)
         object_boxes = np.asarray(object_boxes, dtype=np.int)
@@ -212,6 +218,14 @@ class FCNObjectDetector:
             resize_bbox[index, 3] = box[3] * diffy 
         return resize_bbox
 
+    def demean_rgb_image(self, im_rgb):
+        im_rgb = im_rgb.astype(float)
+        im_rgb[:, :, 0] -= float(104.0069879317889)
+        im_rgb[:, :, 1] -= float(116.66876761696767)
+        im_rgb[:, :, 2] -= float(122.6789143406786)
+        im_rgb = (im_rgb - im_rgb.min())/(im_rgb.max() - im_rgb.min())
+        return im_rgb
+
 
     def vis_square(self, data):
         data = (data - data.min()) / (data.max() - data.min())
@@ -223,7 +237,7 @@ class FCNObjectDetector:
                                                                tuple(range(4, data.ndim + 1)))
         data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
         plt.imshow(data); plt.axis('off')
-        plt.show()
+        plt.pause(0.09)
 
     def is_file_valid(self):
         if self.__model_proto is None or \
