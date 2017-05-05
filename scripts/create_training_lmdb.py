@@ -94,8 +94,8 @@ class CreateTrainingLMDB:
             sys.exit()
 
         rospy.loginfo("running")
-        # self.process_data(self.__data_textfile)
-        self.read_lmdb(self.__lmdb_images)  ## inspection into data
+        self.process_data(self.__data_textfile)
+        ##self.read_lmdb(self.__lmdb_images)  ## inspection into data
         
 
     def process_data(self, path_to_txt):
@@ -125,6 +125,7 @@ class CreateTrainingLMDB:
                 img = cv.imread(str(ipath))
                 rect = rects[index]
                 label = organized_label[index]
+
 
                 print "processs: ", ipath, " ", img.shape
 
@@ -369,8 +370,10 @@ class CreateTrainingLMDB:
         w = np.abs(pt2[0] - pt1[0])
         h = np.abs(pt2[1] - pt1[1])
 
-        flip_rect = [x, y, w, h]
+        x = 0 if x < 0 else x
+        y = 0 if y < 0 else y
 
+        flip_rect = [x, y, w, h]
         return im_flip, flip_rect
 
 
