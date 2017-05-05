@@ -84,8 +84,10 @@ class CreateTrainingLMDB:
         self.__net_size_y = rospy.get_param('~net_size_y', 448) ## network image rows
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
+        ##! if only roi cropped dataset
+        self.__only_roi = rospy.get_param('~only_roi', True)
+
         self.__num_classes = None  ## number of classes
-        
         
         if (self.__net_size_x < 1) or (self.__stride < 16):
             rospy.logfatal('Incorrect netsize or stride')
@@ -93,7 +95,7 @@ class CreateTrainingLMDB:
 
         rospy.loginfo("running")
         self.process_data(self.__data_textfile)
-        ## self.read_lmdb(self.__lmdb_labels)  ## inspection into data
+        self.read_lmdb(self.__lmdb_images)  ## inspection into data
         
 
     def process_data(self, path_to_txt):
@@ -111,13 +113,12 @@ class CreateTrainingLMDB:
 
         if self.__num_classes is None:
             rospy.logfatal("Valid class label not found")
-            sys.exit()
-
 
         ## write data
         map_size = 1e12
         lmdb_labels = lmdb.open(str(self.__lmdb_labels), map_size=int(map_size))
         lmdb_images = lmdb.open(str(self.__lmdb_images), map_size=int(map_size))
+        counter = 0
         with lmdb_labels.begin(write=True) as lab_db, lmdb_images.begin(write=True) as img_db:
             for index, ipath in enumerate(img_path):
 
@@ -127,29 +128,37 @@ class CreateTrainingLMDB:
 
                 print "processs: ", ipath, " ", img.shape
 
-                widths = ([img.shape[1]/4, img.shape[1]/4])
-                heights = ([img.shape[0]/4, img.shape[0]/4])
-                img, rect = self.crop_image_dimension(img, rect, widths, heights)
+                enlarged_roi = False
+                if enlarged_roi:
+                    widths = ([img.shape[1]/4, img.shape[1]/4])
+                    heights = ([img.shape[0]/4, img.shape[0]/4])
+                    img, rect = self.crop_image_dimension(img, rect, widths, heights)
 
                 images, drects = self.random_argumentation(img, rect)
-                
                 for im, bb in zip(images, drects):
-                    im2, bb2 = self.resize_image_and_labels(im, bb)
-                    data_labels = self.pack_data(im2, bb2, label)
+                    if self.__only_roi:
+                        roi = im[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2]].copy()
+                        roi = cv.resize(roi, (224, 224))  ### >>> dimension hardcoded <<<
+                        roi = self.demean_rgb_image(roi)
+                        
+                        im_datum = caffe.io.array_to_datum(roi, int(label))
+                        img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
+                    else:
+                        im2, bb2 = self.resize_image_and_labels(im, bb)
+                        data_labels = self.pack_data(im2, bb2, label)
 
-                    # ##! write labels
-                    lab_datum = caffe.io.array_to_datum(data_labels)
-                    lab_db.put('{:0>10d}'.format(index), lab_datum.SerializeToString())
+                        # ##! write labels
+                        lab_datum = caffe.io.array_to_datum(data_labels)
+                        lab_db.put('{:0>10d}'.format(counter), lab_datum.SerializeToString())
 
-                    im3 = im2.copy()
-                    im3 = im3.swapaxes(2, 0)
-                    im3 = im3.swapaxes(2, 1)
+                        im3 = im2.copy()
+                        im3 = im3.swapaxes(2, 0)
+                        im3 = im3.swapaxes(2, 1)
                     
-                    im_datum = caffe.io.array_to_datum(im3)
-                    img_db.put('{:0>10d}'.format(index), im_datum.SerializeToString())
-
-                    # print "size: ", data_labels.shape, " ", im3.shape
-                    
+                        im_datum = caffe.io.array_to_datum(im3)
+                        img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
+                    counter += 1
+        print "counter: ", counter
 
         lmdb_labels.close()
         lmdb_images.close()
@@ -224,18 +233,10 @@ class CreateTrainingLMDB:
 
                     diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
                     obj_labels[k:k+channel_stride, j, i] = diff
-                    # obj_labels[k + 1, j, i] = diff
-                    # obj_labels[k + 2, j, i] = diff
-                    # obj_labels[k + 3, j, i] = diff
 
                     coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
-                    # coverage_label[k + 1, j, i] = region_labels[j, i]
-                    # coverage_label[k + 2, j, i] = region_labels[j, i]
-                    # coverage_label[k + 3, j, i] = region_labels[j, i]
                     
                     foreground_labels[label, j, i] = 1.0
-
-                    # print k, " ", boxes_labels[k:k+channel_stride, j, i]
 
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
         
@@ -302,8 +303,8 @@ class CreateTrainingLMDB:
             rects.append(crop_rect)
 
             ## apply blur
-            kernel_x = random.randint(3, 9)
-            kernel_y = random.randint(3, 9)
+            kernel_x = random.randint(3, 7)
+            kernel_y = random.randint(3, 7)
             kernel_x = kernel_x + 1 if kernel_x % 2 is 0 else kernel_x
             kernel_y = kernel_y + 1 if kernel_y % 2 is 0 else kernel_y
 
@@ -416,6 +417,17 @@ class CreateTrainingLMDB:
         return boxes
 
     """
+    Function to demean rgb image using imagenet mean
+    """
+    def demean_rgb_image(self, im_rgb):
+        im_rgb = im_rgb.astype(float)
+        im_rgb[:, :, 0] -= float(104.0069879317889)
+        im_rgb[:, :, 1] -= float(116.66876761696767)
+        im_rgb[:, :, 2] -= float(122.6789143406786)
+        im_rgb = (im_rgb - im_rgb.min())/(im_rgb.max() - im_rgb.min())
+        return im_rgb
+
+    """
     Function to extract path to images, bounding boxes and the labels
     """
     def decode_lines(self, lines):
@@ -449,13 +461,19 @@ class CreateTrainingLMDB:
         return lines
 
     def read_lmdb(self, lmdb_fn):
-        in_db = lmdb.open(str(lmdb_fn), readonly=True)
-        with in_db.begin() as txn:
-            raw_datum = txn.get(b'0000000000')
-            datum = caffe.proto.caffe_pb2.Datum()
-            datum.ParseFromString(raw_datum)
-            flat_x = np.fromstring(datum.data, dtype=np.float)
-            print datum
+        lmdb_env = lmdb.open(lmdb_fn)
+        lmdb_txn = lmdb_env.begin()
+        lmdb_cursor = lmdb_txn.cursor()
+        datum = caffe.proto.caffe_pb2.Datum()
+        for key, value in lmdb_cursor:
+            datum.ParseFromString(value)
+
+            label = datum.label
+            data = caffe.io.datum_to_array(datum)
+
+            cv.imshow("lmdb_image", data)
+            cv.waitKey(3)
+        return
 
 def main(argv):
     try:
