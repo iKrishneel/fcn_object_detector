@@ -85,7 +85,7 @@ class CreateTrainingLMDB:
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
         ##! if only roi cropped dataset
-        self.__only_roi = rospy.get_param('~only_roi', False)
+        self.__only_roi = rospy.get_param('~only_roi', True)
 
         self.__num_classes = None  ## number of classes
         
@@ -94,8 +94,8 @@ class CreateTrainingLMDB:
             sys.exit()
 
         rospy.loginfo("running")
-        self.process_data(self.__data_textfile)
-        # self.read_lmdb(self.__lmdb_images)  ## inspection into data
+        # self.process_data(self.__data_textfile)
+        self.read_lmdb(self.__lmdb_images)  ## inspection into data
         
 
     def process_data(self, path_to_txt):
@@ -140,7 +140,8 @@ class CreateTrainingLMDB:
                         roi = im[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2]].copy()
                         roi = cv.resize(roi, (224, 224))  ### >>> dimension hardcoded <<<
                         roi = self.demean_rgb_image(roi)
-                        
+                        roi = roi.swapaxes(2, 0)
+                        roi = roi.swapaxes(2, 1)
                         im_datum = caffe.io.array_to_datum(roi, int(label))
                         img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
                     else:
@@ -466,14 +467,18 @@ class CreateTrainingLMDB:
         lmdb_txn = lmdb_env.begin()
         lmdb_cursor = lmdb_txn.cursor()
         datum = caffe.proto.caffe_pb2.Datum()
+        index = 0
         for key, value in lmdb_cursor:
             datum.ParseFromString(value)
 
             label = datum.label
             data = caffe.io.datum_to_array(datum)
 
-            cv.imshow("lmdb_image", data)
-            cv.waitKey(3)
+            print "label: ", label, " ", data.shape, " ", index
+
+            index += 1
+        # cv.imshow("lmdb_image", data)
+        # cv.waitKey(3)
         return
 
 def main(argv):
