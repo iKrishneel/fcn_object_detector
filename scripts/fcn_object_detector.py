@@ -91,7 +91,7 @@ class FCNObjectDetector():
                     label_color.append((b, g, r))
                     object_boxes.append(box)
 
-                print index
+                # print index
             
         label_color = np.asarray(label_color, dtype=np.float)
         object_boxes = np.asarray(object_boxes, dtype=np.int)
@@ -103,7 +103,10 @@ class FCNObjectDetector():
         object_boxes = self.resize_detection(input_image.shape, object_boxes)
 
         ## give results to rcnn
+        # object_boxes = self.__rcnn.run_detector(input_image, object_boxes)
         self.__rcnn.run_detector(input_image, object_boxes)
+
+
 
         cv_img = cv.resize(input_image.copy(), (input_image.shape[1], input_image.shape[0]))
         im_out = cv_img.copy()
@@ -163,7 +166,7 @@ class FCNObjectDetector():
         self.__net.blobs['data'].reshape(1, 3, self.__im_height, self.__im_width)
 
     def subscribe(self):
-        rospy.Subscriber('image', Image, self.callback)
+        rospy.Subscriber('image', Image, self.callback, tcp_nodelay=True)
 
 
     """
@@ -276,7 +279,7 @@ class FCNObjectDetector():
 
 def main(argv):
     try:
-        rospy.init_node('fcn_object_detector', anonymous = False)
+        rospy.init_node('fcn_object_detector', anonymous = True)
         fod = FCNObjectDetector()
         rospy.spin()
     except rospy.ROSInterruptException:

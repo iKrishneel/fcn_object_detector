@@ -38,7 +38,6 @@ class RCNNDetector:
         dire = "/home/krishneel/nvcaffe/jobs/region_cnn1/"
         self.__weights= dire + "snapshots/snapshot_iter_5000.caffemodel"
         self.__model_proto = dire + "deploy10.prototxt"
-
         
         # ## NMS
         # self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
@@ -57,15 +56,25 @@ class RCNNDetector:
         if len(image.shape) < 3 or len(rects) < 1:
             rospy.loginfo("EMPTY INPUT DATA")
             return
-            
-        for rect in rects:
+
+        bboxes = []
+        for index, rect in enumerate(rects):
+            x1 = rect[0]
+            y1 = rect[1]
+            x1 = 0 if x1 < 0 else x1
+            y1 = 0 if y1 < 0 else y1
             if rect[2] > 16 and rect[3] > 16:
-                im_roi = image[rect[1]:rect[3], rect[0]:rect[2]].copy()
+                im_roi = image[y1:rect[3], x1:rect[2]].copy()
                 im_roi = self.demean_rgb_image(im_roi)
                 self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', im_roi)
                 output = self.__net.forward()
                 output_prob = output['prob']
-                print "LABEL: ", output_prob.argmax()
+                
+                #if (output_prob.argmax() == 0):
+                #    bboxes.append(rect)
+
+            
+            return np.asarray(bboxes, dtype=np.int)
 
     def callback(self, image_msg, rect_msg):
         cv_img = None
@@ -84,7 +93,6 @@ class RCNNDetector:
         if len(rect_msg.polygon.points) < 1:
             rospy.logwarn("No object proposal received")
             return
-
 
 
     def subscribe(self):
