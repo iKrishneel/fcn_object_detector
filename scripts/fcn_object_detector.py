@@ -17,10 +17,6 @@ import matplotlib.pylab as plt
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 
-IM_WIDTH = 448
-IM_HEIGHT = 448
-
-
 class FCNObjectDetector:
 
     def __init__(self):
@@ -36,11 +32,6 @@ class FCNObjectDetector:
         self.__weights = rospy.get_param('~pretrained_weights', None)
         self.__model_proto = rospy.get_param('~deployment_prototxt', None)
         self.__device_id = rospy.get_param('device_id', 0)
-
-        ## temp
-        # # folder_path = '/home/krishneel/nvcaffe/jobs/multiclass_detectnet/models/16_objects/'
-        # self.__model_proto = folder_path  + 'deploy.prototxt'
-        # self.__weights = folder_path + 'snapshot_iter_4500.caffemodel'
 
         if self.is_file_valid():
             self.load_caffe_model()
@@ -66,7 +57,7 @@ class FCNObjectDetector:
         caffe.set_mode_gpu()
 
         cv_img = self.demean_rgb_image(cv_img)
-        cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
+        # cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
         self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', cv_img)
         output = self.__net.forward()
 
@@ -107,7 +98,7 @@ class FCNObjectDetector:
         [
             [
                 cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), color, -1),
-                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 2)
+                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4)
             ] for box, color in zip(object_boxes, label_color)
         ]
 
@@ -169,8 +160,8 @@ class FCNObjectDetector:
     code copied from nvidia detectnet for transforming the grids to boxes
     """
     def gridbox_to_boxes(self, net_cvg, net_boxes, prob_thresh):
-        im_sz_x = IM_WIDTH
-        im_sz_y = IM_HEIGHT
+        im_sz_x = self.__im_width
+        im_sz_y = self.__im_height
         stride = 16
 
         grid_sz_x = int(im_sz_x / stride)
@@ -208,8 +199,8 @@ class FCNObjectDetector:
         return boxes, cvgs, mask
 
     def resize_detection(self, in_size, bbox):
-        diffx = float(in_size[1])/float(IM_WIDTH)
-        diffy = float(in_size[0])/float(IM_HEIGHT)
+        diffx = float(in_size[1])/float(self.__im_width)
+        diffy = float(in_size[0])/float(self.__im_height)
         resize_bbox = bbox
         for index, box in enumerate(bbox):
             resize_bbox[index, 0] = box[0] * diffx

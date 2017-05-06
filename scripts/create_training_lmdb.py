@@ -85,7 +85,7 @@ class CreateTrainingLMDB:
         self.__stride = rospy.get_param('~stride', 16)  ## stride of the grid
         
         ##! if only roi cropped dataset
-        self.__only_roi = rospy.get_param('~only_roi', True)
+        self.__only_roi = rospy.get_param('~only_roi', False)
 
         self.__num_classes = None  ## number of classes
         
