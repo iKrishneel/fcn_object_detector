@@ -16,8 +16,12 @@ import cv2 as cv
 import matplotlib.pylab as plt
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
+from geometry_msgs.msg import PolygonStamped as Rect
+from geometry_msgs.msg import Polygon, Point32
 
-class FCNObjectDetector:
+from region_cnn_detector import RCNNDetector
+
+class FCNObjectDetector():
 
     def __init__(self):
         self.__net = None
@@ -25,6 +29,8 @@ class FCNObjectDetector:
         self.__im_width = None
         self.__im_height = None
         self.__bridge = CvBridge()
+
+        self.__rcnn = RCNNDetector()
 
         self.__prob_thresh = rospy.get_param('~detection_threshold', 0.5)  #! threshold for masking the detection
         self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
@@ -37,6 +43,9 @@ class FCNObjectDetector:
             self.load_caffe_model()
             rospy.loginfo('DETECTOR SETUP SUCCESSFUL')
 
+        ##! publisher setup
+        self.pub_box = rospy.Publisher('/fcn_object_detector/rects', Rect, queue_size = 1)
+            
         self.subscribe()
 
     def run_detector(self, image_msg):
@@ -93,6 +102,9 @@ class FCNObjectDetector:
 
         object_boxes = self.resize_detection(input_image.shape, object_boxes)
 
+        ## give results to rcnn
+        self.__rcnn.run_detector(input_image, object_boxes)
+
         cv_img = cv.resize(input_image.copy(), (input_image.shape[1], input_image.shape[0]))
         im_out = cv_img.copy()
         [
@@ -101,6 +113,24 @@ class FCNObjectDetector:
                 cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4)
             ] for box, color in zip(object_boxes, label_color)
         ]
+
+        
+        ##! publish
+        is_publish = False
+        if is_publish:
+            rects = Rect()
+            for box in object_boxes:
+                pt = Point32()
+                pt.x = box[0]
+                pt.y = box[1]
+                rects.polygon.points.append(pt)
+                pt = Point32()
+                pt.x = box[2]
+                pt.y = box[3]
+                rects.polygon.points.append(pt)
+
+            rects.header = image_msg.header
+            self.pub_box.publish(rects)
 
         alpha = 0.3
         cv.addWeighted(im_out, alpha, cv_img, 1.0 - alpha, 0, im_out)

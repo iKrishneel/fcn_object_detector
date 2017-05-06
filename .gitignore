@@ -32,3 +32,4 @@ msvc/Release/
 .*.swp
 tags
 mkmf.log
+*.pyc
