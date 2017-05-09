@@ -35,9 +35,9 @@ class RCNNDetector:
         self.__device_id = rospy.get_param('device_id', 0)
 
         # ## temp
-        dire = "/home/krishneel/nvcaffe/jobs/region_cnn1/"
-        self.__weights= dire + "snapshots/snapshot_iter_5000.caffemodel"
-        self.__model_proto = dire + "deploy10.prototxt"
+        dire = "/home/krishneel/nvcaffe/jobs/region_cnn11/"
+        self.__weights= dire + "snapshots/snapshot_iter_500.caffemodel"
+        self.__model_proto = dire + "deploy.prototxt"
         
         # ## NMS
         # self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
@@ -48,6 +48,7 @@ class RCNNDetector:
             rospy.loginfo('DETECTOR SETUP SUCCESSFUL')
         else:
             rospy.logfatal("[RCNN DETECTOR:] ERROR SETUP FAILED")
+            sys.exit()
 
         # self.subscribe()
 
@@ -56,8 +57,9 @@ class RCNNDetector:
         if len(image.shape) < 3 or len(rects) < 1:
             rospy.loginfo("EMPTY INPUT DATA")
             return
-
+        labels = []
         bboxes = []
+        print 
         for index, rect in enumerate(rects):
             x1 = rect[0]
             y1 = rect[1]
@@ -70,11 +72,15 @@ class RCNNDetector:
                 output = self.__net.forward()
                 output_prob = output['prob']
                 
-                #if (output_prob.argmax() == 0):
-                #    bboxes.append(rect)
+                if (output_prob.argmax() > 0):
+                    print "label: ", output_prob.max(), " ", output_prob.argmax()
+                    bboxes.append(rect)
+                    labels.append(output_prob.argmax())
+                
 
-            
-            return np.asarray(bboxes, dtype=np.int)
+        object_boxes = np.asarray(bboxes, dtype=np.int)
+        labels = np.array(labels)
+        return  (object_boxes, labels)
 
     def callback(self, image_msg, rect_msg):
         cv_img = None

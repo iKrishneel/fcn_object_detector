@@ -73,10 +73,17 @@ class FCNObjectDetector():
         probability_map = self.__net.blobs['coverage'].data[0]
         bbox_map = self.__net.blobs['bboxes'].data[0]
 
-        self.vis_square(probability_map)
+        
 
         object_boxes = []
         label_color = []
+        for i in xrange(0, 10, 1):
+            r = random.random() * 255
+            g = random.random() * 255
+            b = random.random() * 255
+            label_color.append((b, g, r))
+            
+        
         for index, p_map in enumerate(probability_map):
             idx = index * 4
             propose_boxes, propose_cvgs, mask = self.gridbox_to_boxes(p_map, bbox_map[idx:idx+4], self.__prob_thresh)
@@ -88,7 +95,7 @@ class FCNObjectDetector():
                 b = random.random() * 255
 
                 for box in obj_boxes:
-                    label_color.append((b, g, r))
+                    #label_color.append((b, g, r))
                     object_boxes.append(box)
 
                 # print index
@@ -103,18 +110,20 @@ class FCNObjectDetector():
         object_boxes = self.resize_detection(input_image.shape, object_boxes)
 
         ## give results to rcnn
-        # object_boxes = self.__rcnn.run_detector(input_image, object_boxes)
-        self.__rcnn.run_detector(input_image, object_boxes)
+        object_boxes, object_labels = self.__rcnn.run_detector(input_image, object_boxes)
+        # self.__rcnn.run_detector(input_image, object_boxes)
 
-
+        if object_labels.shape[0] != object_boxes.shape[0]:
+            rospy.logwarn("incorrect size label and rects")
+            return
 
         cv_img = cv.resize(input_image.copy(), (input_image.shape[1], input_image.shape[0]))
         im_out = cv_img.copy()
         [
             [
-                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), color, -1),
+                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), label_color[label-1], -1),
                 cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4)
-            ] for box, color in zip(object_boxes, label_color)
+            ] for box, label in zip(object_boxes, object_labels)
         ]
 
         
