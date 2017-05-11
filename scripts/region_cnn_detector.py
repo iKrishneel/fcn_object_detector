@@ -35,11 +35,15 @@ class RCNNDetector:
         self.__device_id = rospy.get_param('device_id', 0)
 
         # ## temp
-        dire = "/home/krishneel/nvcaffe/jobs/region_cnn11/"
+        # dire = "/home/krishneel/nvcaffe/jobs/region_cnn11/"
+        # self.__weights= dire + "snapshots/snapshot_iter_500.caffemodel"
+        # self.__model_proto = dire + "deploy.prototxt"
+        
+        dire = "/home/krishneel/nvcaffe/jobs/region_cnn9/"
         self.__weights= dire + "snapshots/snapshot_iter_500.caffemodel"
         self.__model_proto = dire + "deploy.prototxt"
         
-        # ## NMS
+        # l## NMS
         # self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
         # self.__group_eps_thresh = rospy.get_param('~nms_eps', 0.2) #! bbox grouping        
         
@@ -59,7 +63,6 @@ class RCNNDetector:
             return
         labels = []
         bboxes = []
-        print 
         for index, rect in enumerate(rects):
             x1 = rect[0]
             y1 = rect[1]
@@ -72,12 +75,12 @@ class RCNNDetector:
                 output = self.__net.forward()
                 output_prob = output['prob']
                 
-                if (output_prob.argmax() > 0):
+                if (output_prob.argmax() > 0.5):
                     print "label: ", output_prob.max(), " ", output_prob.argmax()
                     bboxes.append(rect)
                     labels.append(output_prob.argmax())
                 
-
+                
         object_boxes = np.asarray(bboxes, dtype=np.int)
         labels = np.array(labels)
         return  (object_boxes, labels)

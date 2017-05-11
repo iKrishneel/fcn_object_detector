@@ -121,7 +121,7 @@ class FCNObjectDetector():
         im_out = cv_img.copy()
         [
             [
-                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), label_color[label-1], -1),
+                #cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), label_color[label-1], -1),
                 cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4)
             ] for box, label in zip(object_boxes, object_labels)
         ]
@@ -144,11 +144,12 @@ class FCNObjectDetector():
             rects.header = image_msg.header
             self.pub_box.publish(rects)
 
-        alpha = 0.3
-        cv.addWeighted(im_out, alpha, cv_img, 1.0 - alpha, 0, im_out)
+        # alpha = 0.3
+        # cv.addWeighted(im_out, alpha, cv_img, 1.0 - alpha, 0, im_out)
     
         cv.namedWindow('detection', cv.WINDOW_NORMAL)
-        cv.imshow('detection', im_out)
+        #cv.imshow('detection', im_out)
+        cv.imshow('detection', cv_img)
         cv.waitKey(3)
 
 
