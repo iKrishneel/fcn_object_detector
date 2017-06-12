@@ -114,6 +114,8 @@ class CreateTrainingLMDB:
         if self.__num_classes is None:
             rospy.logfatal("Valid class label not found")
 
+        is_argument = False ##! write as the input 
+
         ## write data
         map_size = 1e12
         lmdb_labels = lmdb.open(str(self.__lmdb_labels), map_size=int(map_size))
@@ -126,7 +128,6 @@ class CreateTrainingLMDB:
                 rect = rects[index]
                 label = organized_label[index]
 
-
                 print "processs: ", ipath, " ", img.shape
 
                 enlarged_roi = False
@@ -135,32 +136,49 @@ class CreateTrainingLMDB:
                     heights = ([img.shape[0]/4, img.shape[0]/4])
                     img, rect = self.crop_image_dimension(img, rect, widths, heights)
 
-                images, drects = self.random_argumentation(img, rect)
-                for im, bb in zip(images, drects):
-                    if self.__only_roi:
-                        roi = im[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2]].copy()
-                        roi = cv.resize(roi, (224, 224))  ### >>> dimension hardcoded <<<
-                        roi = self.demean_rgb_image(roi)
-                        roi = roi.swapaxes(2, 0)
-                        roi = roi.swapaxes(2, 1)
-                        im_datum = caffe.io.array_to_datum(roi, int(label))
-                        img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
-                    else:
-                        im2, bb2 = self.resize_image_and_labels(im, bb)
-                        data_labels = self.pack_data(im2, bb2, label)
+                if is_argument:
+                    images, drects = self.random_argumentation(img, rect)
+                    for im, bb in zip(images, drects):
+                        if self.__only_roi:
+                            roi = im[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2]].copy()
+                            roi = cv.resize(roi, (224, 224))  ### >>> dimension hardcoded <<<
+                            roi = self.demean_rgb_image(roi)
+                            roi = roi.swapaxes(2, 0)
+                            roi = roi.swapaxes(2, 1)
+                            im_datum = caffe.io.array_to_datum(roi, int(label))
+                            img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
+                        else:
+                            im2, bb2 = self.resize_image_and_labels(im, bb)
+                            data_labels = self.pack_data(im2, bb2, label)
 
-                        # ##! write labels
-                        lab_datum = caffe.io.array_to_datum(data_labels)
-                        lab_db.put('{:0>10d}'.format(counter), lab_datum.SerializeToString())
+                            # ##! write labels
+                            lab_datum = caffe.io.array_to_datum(data_labels)
+                            lab_db.put('{:0>10d}'.format(counter), lab_datum.SerializeToString())
 
-                        im3 = im2.copy()
-                        im3 = self.demean_rgb_image(im3)
-                        im3 = im3.swapaxes(2, 0)
-                        im3 = im3.swapaxes(2, 1)
+                            im3 = im2.copy()
+                            im3 = self.demean_rgb_image(im3)
+                            im3 = im3.swapaxes(2, 0)
+                            im3 = im3.swapaxes(2, 1)
                     
-                        im_datum = caffe.io.array_to_datum(im3)
-                        img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
+                            im_datum = caffe.io.array_to_datum(im3)
+                            img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
+                        counter += 1
+                else:
+                    im3 = img.copy()
+                    im3 = self.demean_rgb_image(im3)
+                    im_datum = caffe.io.array_to_datum(im3)
+                    img_db.put('{:0>10d}'.format(counter), im_datum.SerializeToString())
+                    
+                    num_label = 5 #! x, y, w, h, l
+                    box_label = np.zeros((1, 1, num_label), np.float)
+                    box_label[0][0][0:4] = rect
+                    box_label[0][0][4:5] = label
+
+                    lab_datum = caffe.io.array_to_datum(box_label)
+                    lab_db.put('{:0>10d}'.format(counter), lab_datum.SerializeToString())
+
                     counter += 1
+
         print "counter: ", counter
 
         lmdb_labels.close()
