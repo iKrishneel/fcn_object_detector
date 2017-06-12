@@ -93,6 +93,8 @@ class CreateTrainingLMDB:
             rospy.logfatal('Incorrect netsize or stride')
             sys.exit()
 
+        self.__use_bkgnd = True  #! learn the background as well
+            
         rospy.loginfo("running")
         self.process_data(self.__data_textfile)
         ##self.read_lmdb(self.__lmdb_images)  ## inspection into data
@@ -110,6 +112,9 @@ class CreateTrainingLMDB:
         label_unique, label_indices = np.unique(labels, return_index=False, return_inverse=True, return_counts=False)
         self.__num_classes = label_unique.shape[0]
         organized_label = label_indices
+        if self.__use_bkgnd:
+            organized_label += 1
+            self.__num_classes += 1
 
         if self.__num_classes is None:
             rospy.logfatal("Valid class label not found")
@@ -258,7 +263,8 @@ class CreateTrainingLMDB:
                     coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
                     
                     foreground_labels[label, j, i] = 1.0
-
+                else:
+                    foreground_labels[0, j, i] = 1.0
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
         
 
