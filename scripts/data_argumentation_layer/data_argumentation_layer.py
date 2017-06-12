@@ -38,13 +38,16 @@ class DataArgumentationLayer(caffe.Layer):
         n_images = bottom[0].data.shape[0]        
         out_size_x = int(self.image_size_x / self.stride)
         out_size_y = int(self.image_size_y / self.stride)
+
+        channel_stride = 4
+        channels = int(self.num_classes * channel_stride)
         
         top[0].reshape(n_images, 3, self.image_size_y, self.image_size_x)
-        top[1].reshape(n_images, 1, out_size_x, out_size_y) #! cvg labels  # 1
-        top[2].reshape(n_images, 4, out_size_x, out_size_y) #! bbox labels # 4
-        top[3].reshape(n_images, 4, out_size_x, out_size_y) #! size labels # 4
-        top[4].reshape(n_images, 4, out_size_x, out_size_y) #! obj labels  # 4
-        top[5].reshape(n_images, 4, out_size_x, out_size_y) #! cvg block   # 4
+        top[1].reshape(n_images, self.num_classes, out_size_x, out_size_y) #! cvg labels  # 1
+        top[2].reshape(n_images, channels, out_size_x, out_size_y) #! bbox labels # 4
+        top[3].reshape(n_images, channels, out_size_x, out_size_y) #! size labels # 4
+        top[4].reshape(n_images, channels, out_size_x, out_size_y) #! obj labels  # 4
+        top[5].reshape(n_images, channels, out_size_x, out_size_y) #! cvg block   # 4
         
         
     def forward(self, bottom, top):

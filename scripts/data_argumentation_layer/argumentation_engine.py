@@ -5,21 +5,11 @@
 ## The University of Tokyo, Japan
 ###########################################################################
 
-import os
 import sys
 import math
-import lmdb
 import random
-import caffe
 import numpy as np
 import cv2 as cv
-import matplotlib.pylab as plt
-
-FORE_PROB_ = 1.0
-BACK_PROB_ = 0.0
-FLT_EPSILON_ = sys.float_info.epsilon
-
-np.set_printoptions(threshold=np.nan)
 
 """
 Class for computing intersection over union(IOU)
@@ -64,49 +54,18 @@ class ArgumentationEngine(object):
         self.__net_size_y = im_height
         self.__stride = stride
         self.__num_classes = num_classes
-
-    def pack_data(self, img, rect, label):
-
-        foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
-        self.bounding_box_parameterized_labels(img, rect, label, self.__stride)
-
-        ## pack all in one data
-        K = foreground_labels.shape[0] + boxes_labels.shape[0] + size_labels.shape[0] + \
-            obj_labels.shape[0] + coverage_label.shape[0]
-        W = boxes_labels.shape[1]
-        H = boxes_labels.shape[2]
         
-        data_labels = np.zeros((K, W, H))
-
-        start = 0
-        end = start + foreground_labels.shape[0]
-        data_labels[start:end] = foreground_labels
-
-        start = end
-        end = start + boxes_labels.shape[0]
-        data_labels[start:end] = boxes_labels
-
-        start = end
-        end = start + size_labels.shape[0]
-        data_labels[start:end] = size_labels
-
-        start = end
-        end = start + obj_labels.shape[0]
-        data_labels[start:end] = obj_labels
-        
-        start = end
-        end = start + coverage_label.shape[0]
-        data_labels[start:end] = coverage_label
-
-        return data_labels
-
+        self.__jc = JaccardCoeff()
+        self.FORE_PROB_ = float(1.0)
+        self.BACK_PROB_ = float(1.0)
+        self.FLT_EPSILON_ = sys.float_info.epsilon
 
     def bounding_box_parameterized_labels(self, img, rect, label, stride):
         boxes = self.grid_region(img, stride)
-        region_labels = self.generate_box_labels(img, boxes, rect, FLT_EPSILON_)
+        region_labels = self.generate_box_labels(img, boxes, rect, self.FLT_EPSILON_)
         
         channel_stride = 4 
-        channels = self.__num_classes * channel_stride
+        channels = int(self.__num_classes * channel_stride)
         
         foreground_labels = np.zeros((self.__num_classes, boxes.shape[0], boxes.shape[1])) # 1
         boxes_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 4
@@ -115,7 +74,7 @@ class ArgumentationEngine(object):
         coverage_label = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
 
         k = int(label * channel_stride)
-
+        
         for j in xrange(0, region_labels.shape[0], 1):
             for i in xrange(0, region_labels.shape[1], 1):
                 if region_labels[j, i] == 1.0:
@@ -136,10 +95,11 @@ class ArgumentationEngine(object):
 
                     coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
                     
-                    foreground_labels[int(label), j, i] = 1.0
+                    foreground_labels[int(label), j, i] = self.FORE_PROB_
+                else:
+                    foreground_labels[int(0), j, i] = self.BACK_PROB_  #! learn the background as well
 
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
-        
 
     def resize_image_and_labels(self, image, labels):
         resize_flag = (self.__net_size_x, self.__net_size_y)
@@ -164,7 +124,6 @@ class ArgumentationEngine(object):
 
             rect_resize = (int(xt), int(yt), int(xb - xt), int(yb - yt))
             return img, rect_resize
-
 
     def random_argumentation(self, image, rect): 
         
@@ -191,7 +150,6 @@ class ArgumentationEngine(object):
         heights = (int(rect_flip[3] * enlarge_factor1), rect_flip[3] * enlarge_factor2)
         crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, widths, heights)
 
-
         ## apply blur
         kernel_x = random.randint(3, 7)
         kernel_y = random.randint(3, 7)
@@ -211,7 +169,6 @@ class ArgumentationEngine(object):
         y = 0 if y < 0 else y
         w = ((w - (w + x) - image.shape[1])) if x > image.shape[1] else w
         h = ((h - (h + y) - image.shape[0])) if y > image.shape[0] else h
-
 
         roi = image[y:y+h, x:x+w].copy()
         new_rect = [int(rect[0] - x), int(rect[1] - y), rect[2], rect[3]]
@@ -248,15 +205,13 @@ class ArgumentationEngine(object):
     """
     Function to label each grid boxes based on IOU score
     """     
-    def generate_box_labels(self, image, boxes, rect, label, iou_thresh = FLT_EPSILON_):
-        jc = JaccardCoeff()
+    def generate_box_labels(self, image, boxes, rect, iou_thresh):
         box_labels = np.zeros((boxes.shape[0], boxes.shape[1]))
         for j in xrange(0, boxes.shape[0], 1):
             for i in xrange(0, boxes.shape[1], 1):
-                if jc.iou(boxes[j, i], rect) > iou_thresh:
-                    box_labels[j, i] = FORE_PROB_
-        return  box_labels
-
+                if self.__jc.iou(boxes[j, i], rect) > iou_thresh:
+                    box_labels[j, i] = self.FORE_PROB_
+        return box_labels
 
     """
     Function to overlay a grid on the image and return the boxes
