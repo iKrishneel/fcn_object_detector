@@ -289,23 +289,3 @@ class ArgumentationEngine(object):
         rect_rot = np.array([minx, miny, maxx-minx, maxy-miny])
 
         return im_rot, rect_rot
-        
-    
-##%%%%TEST
-
-# while True:
-    
-#     img=cv.imread('/home/krishneel/Desktop/dataset/cheezit/00000010.jpg' + str())
-#     ae = ArgumentationEngine(img.shape[1], img.shape[0], 16, 1)
-#     rect=np.array([361,198,100, 134])
-#     img2, rect2 = ae.random_argumentation(img, rect)
-
-#     x,y,w,h = rect2
-#     cv.rectangle(img2, (x,y), (w+x, h+y), (0, 255,0),3)
-
-#     cv.namedWindow('test', cv.WINDOW_NORMAL)
-#     cv.imshow('test', img2)    
-#     key = cv.waitKey(0)                                                                    
-#     if key == ord('q'):                                                                   
-#         break
-
