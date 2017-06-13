@@ -10,8 +10,8 @@ class DataArgumentationLayer(caffe.Layer):
 
     def setup(self, bottom, top):
         #! check that inputs are pair of image and labels (bbox and label:int)
-        if len(bottom) != 2:
-            raise Exception('Need two inputs for Argumentation')
+        if len(bottom) > 0:
+            raise Exception('This layer takes no bottom')
         
         if len(top) < 6:
             raise Exception('Current Implementation needs 6 top blobs')
@@ -44,10 +44,7 @@ class DataArgumentationLayer(caffe.Layer):
             
     def reshape(self, bottom, top):
         #! check input dimensions
-        if bottom[1].count < 5:
-            raise Exception('Labels should be 5 dimensional vector')
-                
-        n_images = bottom[0].data.shape[0]        
+        n_images = self.batch_size
         out_size_x = int(self.image_size_x / self.stride)
         out_size_y = int(self.image_size_y / self.stride)
 
