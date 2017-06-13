@@ -157,8 +157,10 @@ class ArgumentationEngine(object):
 
         #! rotate the image
         rot_image, rot_rect = self.rotate_image_with_rect(crop_image, crop_rect)
-        return (rot_image, rot_rect)
 
+        #! normalize image
+        rot_mat = self.demean_rgb_image(rot_image)
+        return (rot_image, rot_rect)
 
 
     def crop_image_dimension(self, image, rect, widths, heights):
