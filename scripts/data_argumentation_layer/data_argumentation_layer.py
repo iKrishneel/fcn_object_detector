@@ -25,7 +25,8 @@ class DataArgumentationLayer(caffe.Layer):
             
             self.batch_size = int(plist[4])
             self.train_fn = str(plist[5]) #! dataset textfile
-            self.randomize = bool(plist[6])
+            #self.randomize = bool(plist[6])
+            self.randomize = True
 
             if not os.path.isfile(self.train_fn):
                 raise ValueError('Provide the dataset textfile')
