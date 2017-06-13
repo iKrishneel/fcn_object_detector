@@ -1,0 +1,6 @@
+[submodule "scripts/imgaug"]
+	path = scripts/imgaug
+	url = https://github.com/aleju/imgaug.git
+[submodule "scripts/data_argumentation_layer/imgaug"]
+	path = scripts/data_argumentation_layer/imgaug
+	url = https://github.com/aleju/imgaug.git
