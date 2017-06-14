@@ -11,6 +11,11 @@ import random
 import numpy as np
 import cv2 as cv
 
+import imgaug.imgaug as ia
+import imgaug.imgaug
+import imgaug.imgaug.augmenters as iaa
+
+
 """
 Class for computing intersection over union(IOU)
 """
@@ -57,7 +62,6 @@ class ArgumentationEngine(object):
         
         self.__jc = JaccardCoeff()
         self.FORE_PROB_ = float(1.0)
-        self.BACK_PROB_ = float(1.0)
         self.FLT_EPSILON_ = sys.float_info.epsilon
 
     def bounding_box_parameterized_labels(self, img, rect, label, stride):
@@ -91,14 +95,12 @@ class ArgumentationEngine(object):
                     size_labels[k + 2, j, i] = 1.0 / rect[2]
                     size_labels[k + 3, j, i] = 1.0 / rect[3]
 
-                    diff = float(boxes[j, i][2] * boxes[j, i][3]) / float(rect[2] * rect[3])
+                    diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
                     obj_labels[k:k+channel_stride, j, i] = diff
 
                     coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
                     
                     foreground_labels[int(label), j, i] = self.FORE_PROB_
-                else:
-                    foreground_labels[int(0), j, i] = self.BACK_PROB_  #! learn the background as well
 
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
 
@@ -107,7 +109,7 @@ class ArgumentationEngine(object):
         img_list = []
         label_resize = []
         if resize_flag:
-            img = cv.resize(image, resize_flag)
+            img = cv.resize(image, resize_flag, cv.INTER_CUBIC)
             img_list.append(img)
             # resize label
             ratio_x = float(image.shape[1]) / float(img.shape[1])
@@ -133,31 +135,32 @@ class ArgumentationEngine(object):
         scale_x = int(math.floor(scale_x))
         scale_y = int(math.floor(scale_y))
         
-        flip_flag = random.randint(-1, 1)
-        img_flip, rect_flip = self.flip_image(image.copy(), rect, flip_flag)
-        
-        return (img_flip, rect_flip)
-        
-        #!TODO
-        ##! flip and save
-        if scale_x < 3:
-            scale_x = 3
-        if scale_y < 3:
-            scale_y = 3
+        #! flip image
+        flip_flag = random.randint(-1, 2)
 
-        enlarge_factor1 = random.randint(2, scale_x)
-        enlarge_factor2 = random.randint(2, scale_y)
+        if flip_flag < 2:
+            img_flip, rect_flip = self.flip_image(image.copy(), rect, flip_flag)
+        else:
+            img_flip = image.copy()
+            rect_flip = rect
+        
+        #! zoom in
+        enlarge_factor1 = random.uniform(1.0, float(scale_x))
+        enlarge_factor2 = random.uniform(1.0, float(scale_y))
         widths = (int(rect_flip[2] * enlarge_factor1), rect_flip[2] * enlarge_factor2)
         heights = (int(rect_flip[3] * enlarge_factor1), rect_flip[3] * enlarge_factor2)
-        crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, widths, heights)
+        crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, \
+                                                          widths, heights)
 
-        ## apply blur
-        kernel_x = random.randint(3, 7)
-        kernel_y = random.randint(3, 7)
-        kernel_x = kernel_x + 1 if kernel_x % 2 is 0 else kernel_x
-        kernel_y = kernel_y + 1 if kernel_y % 2 is 0 else kernel_y
+        #! color arugmentation
+        crop_image = self.color_space_argumentation(crop_image)
 
-        blur_img = cv.GaussianBlur(crop_image, (kernel_x, kernel_y), 0)
+        #! rotate the image
+        rot_image, rot_rect = self.rotate_image_with_rect(crop_image, crop_rect)
+
+        #! normalize image
+        rot_mat = self.demean_rgb_image(rot_image)
+        return (rot_image, rot_rect)
 
 
     def crop_image_dimension(self, image, rect, widths, heights):
@@ -238,3 +241,53 @@ class ArgumentationEngine(object):
         im_rgb[:, :, 2] -= float(122.6789143406786)
         im_rgb = (im_rgb - im_rgb.min())/(im_rgb.max() - im_rgb.min())
         return im_rgb
+
+    """
+    Function that aguments the image color space
+    """
+    def color_space_argumentation(self, image):
+        seq = iaa.Sequential([
+            iaa.OneOf([
+                iaa.GaussianBlur((0, 3.0)),
+                iaa.AverageBlur(k=(2, 7)),
+                iaa.MedianBlur(k=(3, 7)),
+            ]),
+            iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5)),
+            iaa.Add((-2, 21), per_channel=0.5),
+            iaa.Multiply((0.75, 1.25), per_channel=0.5),
+            iaa.ContrastNormalization((0.5, 1.50), per_channel=0.5),
+            iaa.Grayscale(alpha=(0.0, 0.50)),
+        ],
+                             random_order=False)
+        return seq.augment_image(image)
+
+    """
+    Function to rotate image and rect by random angle
+    """
+    def rotate_image_with_rect(self, image, rect):
+        center = (image.shape[1]/2, image.shape[0]/2)
+        angle = float(random.randint(0, 360))
+        rot_mat = cv.getRotationMatrix2D(center, angle, 1)
+        im_rot = cv.warpAffine(image, rot_mat, (image.shape[1], image.shape[0]))
+        
+        #! rotate rect
+        x1 = rect[0] 
+        y1 = rect[1]
+        x2 = x1 + rect[2]
+        y2 = y1 + rect[3]
+        pt1x = int(x1 * rot_mat[0, 0] + y1 * rot_mat[0, 1] + rot_mat[0, 2])
+        pt1y = int(x1 * rot_mat[1, 0] + y1 * rot_mat[1, 1] + rot_mat[1, 2])
+        pt2x = int(x2 * rot_mat[0, 0] + y1 * rot_mat[0, 1] + rot_mat[0, 2])
+        pt2y = int(x2 * rot_mat[1, 0] + y1 * rot_mat[1, 1] + rot_mat[1, 2])
+        pt3x = int(x1 * rot_mat[0, 0] + y2 * rot_mat[0, 1] + rot_mat[0, 2])
+        pt3y = int(x1 * rot_mat[1, 0] + y2 * rot_mat[1, 1] + rot_mat[1, 2])
+        pt4x = int(x2 * rot_mat[0, 0] + y2 * rot_mat[0, 1] + rot_mat[0, 2])
+        pt4y = int(x2 * rot_mat[1, 0] + y2 * rot_mat[1, 1] + rot_mat[1, 2])
+        minx = min(pt1x, min(pt2x, min(pt3x, pt4x)))
+        miny = min(pt1y, min(pt2y, min(pt3y, pt4y)))
+        maxx = max(pt1x, max(pt2x, max(pt3x, pt4x)))
+        maxy = max(pt1y, max(pt2y, max(pt3y, pt4y)))
+
+        rect_rot = np.array([minx, miny, maxx-minx, maxy-miny])
+
+        return im_rot, rect_rot
