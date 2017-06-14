@@ -62,11 +62,10 @@ class ArgumentationEngine(object):
         
         self.__jc = JaccardCoeff()
         self.FORE_PROB_ = float(1.0)
-        self.FLT_EPSILON_ = sys.float_info.epsilon
+        self.FLT_EPSILON_ = 0.5 #sys.float_info.epsilon
 
-    def bounding_box_parameterized_labels(self, img, rect, label, stride):
-        boxes = self.grid_region(img, stride)
-        region_labels = self.generate_box_labels(img, boxes, rect, self.FLT_EPSILON_)
+    def bounding_box_parameterized_labels(self, img, rects, labels):
+        boxes = self.grid_region(img, self.__stride)
         
         channel_stride = 4 
         channels = int(self.__num_classes * channel_stride)
@@ -77,57 +76,69 @@ class ArgumentationEngine(object):
         obj_labels = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
         coverage_label = np.zeros((channels, boxes.shape[0], boxes.shape[1])) # 1
 
-        k = int(label * channel_stride)
-        
-        for j in xrange(0, region_labels.shape[0], 1):
-            for i in xrange(0, region_labels.shape[1], 1):
-                if region_labels[j, i] == 1.0:
-                    t = boxes[j, i]
-                    box = np.array([rect[0] - t[0], rect[1] - t[1], \
-                                    (rect[0] + rect[2]) - t[0], (rect[1] + rect[3]) - t[1]])
-                    boxes_labels[k + 0, j, i] =  box[0]
-                    boxes_labels[k + 1, j, i] =  box[1]
-                    boxes_labels[k + 2, j, i] =  box[2]
-                    boxes_labels[k + 3, j, i] =  box[3]
+        for rect, label in zip(rects, labels):
+            k = int(label * channel_stride)
+            region_labels = self.generate_box_labels(img, boxes, rect, self.FLT_EPSILON_)        
 
-                    size_labels[k + 0, j, i] = 1.0 / rect[2]
-                    size_labels[k + 1, j, i] = 1.0 / rect[3]
-                    size_labels[k + 2, j, i] = 1.0 / rect[2]
-                    size_labels[k + 3, j, i] = 1.0 / rect[3]
+            for j in xrange(0, region_labels.shape[0], 1):
+                for i in xrange(0, region_labels.shape[1], 1):
+                    if region_labels[j, i] == 1.0:
+                        t = boxes[j, i]
+                        box = np.array([rect[0] - t[0], rect[1] - t[1], \
+                                        (rect[0] + rect[2]) - t[0], (rect[1] + rect[3]) - t[1]])
+                        boxes_labels[k + 0, j, i] =  box[0]
+                        boxes_labels[k + 1, j, i] =  box[1]
+                        boxes_labels[k + 2, j, i] =  box[2]
+                        boxes_labels[k + 3, j, i] =  box[3]
 
-                    diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
-                    obj_labels[k:k+channel_stride, j, i] = diff
+                        size_labels[k + 0, j, i] = 1.0 / rect[2]
+                        size_labels[k + 1, j, i] = 1.0 / rect[3]
+                        size_labels[k + 2, j, i] = 1.0 / rect[2]
+                        size_labels[k + 3, j, i] = 1.0 / rect[3]
 
-                    coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
+                        diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
+                        obj_labels[k:k+channel_stride, j, i] = diff
+
+                        coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
                     
-                    foreground_labels[int(label), j, i] = self.FORE_PROB_
+                        foreground_labels[int(label), j, i] = self.FORE_PROB_
 
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
 
-    def resize_image_and_labels(self, image, labels):
+
+
+    """
+    Function to resize image and the labels
+    """     
+    def resize_image_and_labels(self, image, rects):
         resize_flag = (self.__net_size_x, self.__net_size_y)
         img_list = []
-        label_resize = []
+        resize_rects = []
         if resize_flag:
-            img = cv.resize(image, resize_flag, cv.INTER_CUBIC)
-            img_list.append(img)
-            # resize label
-            ratio_x = float(image.shape[1]) / float(img.shape[1])
-            ratio_y = float(image.shape[0]) / float(img.shape[0])
+            for rect in rects:
+                img = cv.resize(image, resize_flag, cv.INTER_CUBIC)
+                img_list.append(img)
+                # resize label
+                ratio_x = float(image.shape[1]) / float(img.shape[1])
+                ratio_y = float(image.shape[0]) / float(img.shape[0])
 
-            x = float(labels[0])
-            y = float(labels[1])
-            w = float(labels[2])
-            h = float(labels[3])
+                x = float(rect[0])
+                y = float(rect[1])
+                w = float(rect[2])
+                h = float(rect[3])
             
-            xt = x / ratio_x
-            yt = y / ratio_y
-            xb = (x + w) / ratio_x
-            yb = (y + h) / ratio_y
+                xt = x / ratio_x
+                yt = y / ratio_y
+                xb = (x + w) / ratio_x
+                yb = (y + h) / ratio_y
+                
+                rect_resize = (int(xt), int(yt), int(xb - xt), int(yb - yt))
+                resize_rects.append(rect_resize)
+        return img, resize_rects
 
-            rect_resize = (int(xt), int(yt), int(xb - xt), int(yb - yt))
-            return img, rect_resize
-
+    """
+    Function random argumentation of images
+    """     
     def random_argumentation(self, image, rect): 
         
         #! flip image
@@ -166,7 +177,9 @@ class ArgumentationEngine(object):
         rot_mat = self.demean_rgb_image(rot_image)
         return (rot_image, rot_rects)
 
-
+    """
+    Function to crop image and the resize the rect
+    """     
     def crop_image_dimension(self, image, rect, widths, heights):
         x = (rect[0] + rect[2]/2) - widths[0]
         y = (rect[1] + rect[3]/2) - heights[0]
@@ -274,7 +287,7 @@ class ArgumentationEngine(object):
     """
     def rotate_image_with_rect(self, image, rects):
         center = (image.shape[1]/2, image.shape[0]/2)
-        angle = float(random.randint(-15, 15))  ##! TODO: add as hyperparam
+        angle = float(random.randint(-5, 5))  ##! TODO: add as hyperparam
         rot_mat = cv.getRotationMatrix2D(center, angle, 1)
         im_rot = cv.warpAffine(image, rot_mat, (image.shape[1], image.shape[0]))
         
@@ -302,22 +315,30 @@ class ArgumentationEngine(object):
 
         return im_rot, rot_rects
 
+
 while True:
     
     img=cv.imread('/media/volume/Documents/datasets/VOCdevkit/VOC2007/JPEGImages/009949.jpg')
-    ae = ArgumentationEngine(img.shape[1], img.shape[0], 16, 1)
+    ae = ArgumentationEngine(448, 448, 8, 3)
     rects = np.array([[128, 121, 372, 229], [195, 241, 305, 134], [25, 90, 402, 222], [203, 81, 128, 137], [235, 116, 44, 43]], np.int32)
     labels = np.array([0, 1, 2, 2, 2], np.int32)
 
-    img2, rect2 = ae.random_argumentation(img, rects)
+    img2, rects2 = ae.random_argumentation(img, rects)
+    img2, rects2 = ae.resize_image_and_labels(img2, rects2)
 
+    a,b,c,d,e = ae.bounding_box_parameterized_labels(img2, rects2, labels)
 
-    for rect in rect2:
+    z = np.hstack((a[0], a[1], a[2]))
+    print z.shape
+
+    for rect in rects2:
         x,y,w,h = rect
         cv.rectangle(img2, (x,y), (w+x, h+y), (0, random.randint(0, 255), random.randint(0, 255)),3)
 
     cv.namedWindow('test', cv.WINDOW_NORMAL)
     cv.imshow('test', img2)    
+    cv.namedWindow('mapo', cv.WINDOW_NORMAL)
+    cv.imshow('mapo', z)    
     key = cv.waitKey(0)                                                                    
     if key == ord('q'):                                                                   
         break

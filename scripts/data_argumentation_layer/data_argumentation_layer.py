@@ -86,26 +86,6 @@ class DataArgumentationLayer(caffe.Layer):
             if self.idx >= len(self.img_path):
                 self.idx = 0
 
-        # for index, (data, labels) in enumerate(zip(bottom[0].data, bottom[1].data)):
-        #     img = data.copy()
-        #     rect = labels[0, 0, 0:4].copy()
-        #     label = labels[0, 0, 4].copy()
-
-        #     img, rect = self.__ae.random_argumentation(img, rect)
-        #     img, rect = self.__ae.resize_image_and_labels(img, rect)
-        #     foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
-        #     self.__ae.bounding_box_parameterized_labels(img, rect, label, self.stride)
-            
-        #     img = img.swapaxes(2, 0)
-        #     img = img.swapaxes(2, 1)
-            
-        #     top[0].data[index] = img
-        #     top[1].data[index] = foreground_labels.copy()
-        #     top[2].data[index] = boxes_labels.copy()
-        #     top[3].data[index] = size_labels.copy()
-        #     top[4].data[index] = obj_labels.copy()
-        #     top[5].data[index] = coverage_label.copy()
-
     def backward(self, top, propagate_down, bottom):
         pass
         
