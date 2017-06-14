@@ -130,37 +130,41 @@ class ArgumentationEngine(object):
 
     def random_argumentation(self, image, rect): 
         
-        scale_x = float(image.shape[1]) / float(rect[2])
-        scale_y = float(image.shape[0]) / float(rect[3])
-        scale_x = int(math.floor(scale_x))
-        scale_y = int(math.floor(scale_y))
-        
         #! flip image
         flip_flag = random.randint(-1, 2)
 
-        if flip_flag < 2:
-            img_flip, rect_flip = self.flip_image(image.copy(), rect, flip_flag)
+        if flip_flag < 2 and flip_flag > -2:
+            img_flip, rect_flips = self.flip_image(image.copy(), rects, flip_flag)
         else:
             img_flip = image.copy()
-            rect_flip = rect
-        
+            rect_flips = rect
+
         #! zoom in
-        enlarge_factor1 = random.uniform(1.0, float(scale_x))
-        enlarge_factor2 = random.uniform(1.0, float(scale_y))
-        widths = (int(rect_flip[2] * enlarge_factor1), rect_flip[2] * enlarge_factor2)
-        heights = (int(rect_flip[3] * enlarge_factor1), rect_flip[3] * enlarge_factor2)
-        crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, \
-                                                          widths, heights)
+        is_crop = False  ##! ToDo: create union of all bounding box then crop
+        if is_crop:
+            scale_x = float(image.shape[1]) / float(rect[2])
+            scale_y = float(image.shape[0]) / float(rect[3])
+            scale_x = int(math.floor(scale_x))
+            scale_y = int(math.floor(scale_y))
+
+            enlarge_factor1 = random.uniform(1.0, float(scale_x))
+            enlarge_factor2 = random.uniform(1.0, float(scale_y))
+            widths = (int(rect_flip[2] * enlarge_factor1), rect_flip[2] * enlarge_factor2)
+            heights = (int(rect_flip[3] * enlarge_factor1), rect_flip[3] * enlarge_factor2)
+            crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, \
+                                                              widths, heights)
+            rect_flip = crop_rect
+            img_flip = crop_image.cop()
 
         #! color arugmentation
-        crop_image = self.color_space_argumentation(crop_image)
+        img_flip = self.color_space_argumentation(img_flip)
 
         #! rotate the image
-        rot_image, rot_rect = self.rotate_image_with_rect(crop_image, crop_rect)
+        rot_image, rot_rects = self.rotate_image_with_rect(img_flip, rect_flips)
 
         #! normalize image
         rot_mat = self.demean_rgb_image(rot_image)
-        return (rot_image, rot_rect)
+        return (rot_image, rot_rects)
 
 
     def crop_image_dimension(self, image, rect, widths, heights):
@@ -179,32 +183,36 @@ class ArgumentationEngine(object):
 
         return roi, new_rect
 
-    def flip_image(self, image, rect, flip_flag = -1):
-        pt1 = (rect[0], rect[1])
-        pt2 = (rect[0] + rect[2], rect[1] + rect[3])
+    """
+    Function flip image and rect around given axis
+    """     
+    def flip_image(self, image, rects, flip_flag = -1):
         im_flip = cv.flip(image, flip_flag)
-        if flip_flag is -1:
-            pt1 = (image.shape[1] - pt1[0] - 1, image.shape[0] - pt1[1] - 1)
-            pt2 = (image.shape[1] - pt2[0] - 1, image.shape[0] - pt2[1] - 1)
-        elif flip_flag is 0:
-            pt1 = (pt1[0], image.shape[0] - pt1[1] - 1)
-            pt2 = (pt2[0], image.shape[0] - pt2[1] - 1)
-        elif flip_flag is 1:
-            pt1 = (image.shape[1] - pt1[0] - 1, pt1[1])
-            pt2 = (image.shape[1] - pt2[0] - 1, pt2[1])
-        else:
-            return image, rect
+        flip_rects = []
+        for rect in rects:
+            pt1 = (rect[0], rect[1])
+            pt2 = (rect[0] + rect[2], rect[1] + rect[3])
+            if flip_flag is -1:
+                pt1 = (image.shape[1] - pt1[0] - 1, image.shape[0] - pt1[1] - 1)
+                pt2 = (image.shape[1] - pt2[0] - 1, image.shape[0] - pt2[1] - 1)
+            elif flip_flag is 0:
+                pt1 = (pt1[0], image.shape[0] - pt1[1] - 1)
+                pt2 = (pt2[0], image.shape[0] - pt2[1] - 1)
+            elif flip_flag is 1:
+                pt1 = (image.shape[1] - pt1[0] - 1, pt1[1])
+                pt2 = (image.shape[1] - pt2[0] - 1, pt2[1])
 
-        x = min(pt1[0], pt2[0])
-        y = min(pt1[1], pt2[1])
-        w = np.abs(pt2[0] - pt1[0])
-        h = np.abs(pt2[1] - pt1[1])
+            x = min(pt1[0], pt2[0])
+            y = min(pt1[1], pt2[1])
+            w = np.abs(pt2[0] - pt1[0])
+            h = np.abs(pt2[1] - pt1[1])
 
-        x = 0 if x < 0 else x
-        y = 0 if y < 0 else y
+            x = 0 if x < 0 else x
+            y = 0 if y < 0 else y
 
-        flip_rect = [x, y, w, h]
-        return im_flip, flip_rect
+            flip_rect = [x, y, w, h]
+            flip_rects.append(flip_rect)
+        return im_flip, flip_rects
 
     """
     Function to label each grid boxes based on IOU score
@@ -264,30 +272,52 @@ class ArgumentationEngine(object):
     """
     Function to rotate image and rect by random angle
     """
-    def rotate_image_with_rect(self, image, rect):
+    def rotate_image_with_rect(self, image, rects):
         center = (image.shape[1]/2, image.shape[0]/2)
-        angle = float(random.randint(0, 360))
+        angle = float(random.randint(-15, 15))  ##! TODO: add as hyperparam
         rot_mat = cv.getRotationMatrix2D(center, angle, 1)
         im_rot = cv.warpAffine(image, rot_mat, (image.shape[1], image.shape[0]))
         
         #! rotate rect
-        x1 = rect[0] 
-        y1 = rect[1]
-        x2 = x1 + rect[2]
-        y2 = y1 + rect[3]
-        pt1x = int(x1 * rot_mat[0, 0] + y1 * rot_mat[0, 1] + rot_mat[0, 2])
-        pt1y = int(x1 * rot_mat[1, 0] + y1 * rot_mat[1, 1] + rot_mat[1, 2])
-        pt2x = int(x2 * rot_mat[0, 0] + y1 * rot_mat[0, 1] + rot_mat[0, 2])
-        pt2y = int(x2 * rot_mat[1, 0] + y1 * rot_mat[1, 1] + rot_mat[1, 2])
-        pt3x = int(x1 * rot_mat[0, 0] + y2 * rot_mat[0, 1] + rot_mat[0, 2])
-        pt3y = int(x1 * rot_mat[1, 0] + y2 * rot_mat[1, 1] + rot_mat[1, 2])
-        pt4x = int(x2 * rot_mat[0, 0] + y2 * rot_mat[0, 1] + rot_mat[0, 2])
-        pt4y = int(x2 * rot_mat[1, 0] + y2 * rot_mat[1, 1] + rot_mat[1, 2])
-        minx = min(pt1x, min(pt2x, min(pt3x, pt4x)))
-        miny = min(pt1y, min(pt2y, min(pt3y, pt4y)))
-        maxx = max(pt1x, max(pt2x, max(pt3x, pt4x)))
-        maxy = max(pt1y, max(pt2y, max(pt3y, pt4y)))
+        rot_rects = []
+        for rect in rects:
+            x1 = rect[0] 
+            y1 = rect[1]
+            x2 = x1 + rect[2]
+            y2 = y1 + rect[3]
+            pt1x = int(x1 * rot_mat[0, 0] + y1 * rot_mat[0, 1] + rot_mat[0, 2])
+            pt1y = int(x1 * rot_mat[1, 0] + y1 * rot_mat[1, 1] + rot_mat[1, 2])
+            pt2x = int(x2 * rot_mat[0, 0] + y1 * rot_mat[0, 1] + rot_mat[0, 2])
+            pt2y = int(x2 * rot_mat[1, 0] + y1 * rot_mat[1, 1] + rot_mat[1, 2])
+            pt3x = int(x1 * rot_mat[0, 0] + y2 * rot_mat[0, 1] + rot_mat[0, 2])
+            pt3y = int(x1 * rot_mat[1, 0] + y2 * rot_mat[1, 1] + rot_mat[1, 2])
+            pt4x = int(x2 * rot_mat[0, 0] + y2 * rot_mat[0, 1] + rot_mat[0, 2])
+            pt4y = int(x2 * rot_mat[1, 0] + y2 * rot_mat[1, 1] + rot_mat[1, 2])
+            minx = min(pt1x, min(pt2x, min(pt3x, pt4x)))
+            miny = min(pt1y, min(pt2y, min(pt3y, pt4y)))
+            maxx = max(pt1x, max(pt2x, max(pt3x, pt4x)))
+            maxy = max(pt1y, max(pt2y, max(pt3y, pt4y)))
+            rect_rot = np.array([minx, miny, maxx-minx, maxy-miny])
+            rot_rects.append(rect_rot)
 
-        rect_rot = np.array([minx, miny, maxx-minx, maxy-miny])
+        return im_rot, rot_rects
 
-        return im_rot, rect_rot
+while True:
+    
+    img=cv.imread('/media/volume/Documents/datasets/VOCdevkit/VOC2007/JPEGImages/009949.jpg')
+    ae = ArgumentationEngine(img.shape[1], img.shape[0], 16, 1)
+    rects = np.array([[128, 121, 372, 229], [195, 241, 305, 134], [25, 90, 402, 222], [203, 81, 128, 137], [235, 116, 44, 43]], np.int32)
+    labels = np.array([0, 1, 2, 2, 2], np.int32)
+
+    img2, rect2 = ae.random_argumentation(img, rects)
+
+
+    for rect in rect2:
+        x,y,w,h = rect
+        cv.rectangle(img2, (x,y), (w+x, h+y), (0, random.randint(0, 255), random.randint(0, 255)),3)
+
+    cv.namedWindow('test', cv.WINDOW_NORMAL)
+    cv.imshow('test', img2)    
+    key = cv.waitKey(0)                                                                    
+    if key == ord('q'):                                                                   
+        break
