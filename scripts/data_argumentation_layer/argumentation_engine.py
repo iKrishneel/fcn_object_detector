@@ -79,7 +79,8 @@ class ArgumentationEngine(object):
             for i in xrange(0, region_labels.shape[1], 1):
                 if region_labels[j, i] == 1.0:
                     t = boxes[j, i]
-                    box = np.array([rect[0] - t[0], rect[1] - t[1], (rect[0] + rect[2]) - t[0], (rect[1] + rect[3]) - t[1]])
+                    box = np.array([rect[0] - t[0], rect[1] - t[1], \
+                                    (rect[0] + rect[2]) - t[0], (rect[1] + rect[3]) - t[1]])
                     boxes_labels[k + 0, j, i] =  box[0]
                     boxes_labels[k + 1, j, i] =  box[1]
                     boxes_labels[k + 2, j, i] =  box[2]
@@ -90,7 +91,7 @@ class ArgumentationEngine(object):
                     size_labels[k + 2, j, i] = 1.0 / rect[2]
                     size_labels[k + 3, j, i] = 1.0 / rect[3]
 
-                    diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
+                    diff = float(boxes[j, i][2] * boxes[j, i][3]) / float(rect[2] * rect[3])
                     obj_labels[k:k+channel_stride, j, i] = diff
 
                     coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]

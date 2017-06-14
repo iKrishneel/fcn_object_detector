@@ -24,11 +24,11 @@ class DataArgumentationLayer(caffe.Layer):
             self.stride = int(plist[2])
             self.num_classes = int(plist[3])
 
-            self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, self.stride, self.num_classes)
+            self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, \
+                                               self.stride, self.num_classes)
 
         except ValueError:
             raise ValueError('Parameter string missing or data type is wrong!')
-
             
     def reshape(self, bottom, top):
         #! check input dimensions
@@ -47,8 +47,7 @@ class DataArgumentationLayer(caffe.Layer):
         top[2].reshape(n_images, channels, out_size_y, out_size_x) #! bbox labels # 4
         top[3].reshape(n_images, channels, out_size_y, out_size_x) #! size labels # 4
         top[4].reshape(n_images, channels, out_size_y, out_size_x) #! obj labels  # 4
-        top[5].reshape(n_images, channels, out_size_y, out_size_x) #! cvg block   # 4
-        
+        top[5].reshape(n_images, channels, out_size_y, out_size_x) #! cvg block   # 4        
         
     def forward(self, bottom, top):
         for index, (data, labels) in enumerate(zip(bottom[0].data, bottom[1].data)):
@@ -71,6 +70,10 @@ class DataArgumentationLayer(caffe.Layer):
             top[4].data[index] = obj_labels.copy()
             top[5].data[index] = coverage_label.copy()
 
+            for f in foreground_labels:
+                print f
+            print '---------------\n'
+            
     def backward(self, top, propagate_down, bottom):
         pass
         
