@@ -33,10 +33,17 @@ class PascalVOT:
 
     #! just read one
     def create(self):
-        lines = self.read_textfile(self.train_file)
 
         out_dir = '/home/krishneel/Desktop/'
-        outfile_name = out_dir + 'train.txt'
+        
+        type_train = False
+        if type_train:
+            lines = self.read_textfile(self.train_file)
+            outfile_name = out_dir + 'train.txt'
+        else:
+            lines = self.read_textfile(self.val_file)
+            outfile_name = out_dir + 'val.txt'
+
         label_manifest = out_dir + 'class_label_names.txt'
         with open(outfile_name, 'w') as text_file:
             for line in lines:
@@ -131,5 +138,5 @@ def test(argv):
     print labels
 
 if __name__ == '__main__':
-    #main(sys.argv)
-    test(sys.argv)
+    main(sys.argv)
+    #! test(sys.argv)

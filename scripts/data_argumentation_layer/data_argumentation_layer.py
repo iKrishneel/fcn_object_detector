@@ -32,7 +32,8 @@ class DataArgumentationLayer(caffe.Layer):
                 raise ValueError('Provide the dataset textfile')
 
             else:
-                self.img_path, self.rects, self.labels = self.read_and_decode_lines()
+                # self.img_path, self.rects, self.labels = self.read_and_decode_lines()
+                self.img_path, self.rects, self.labels = self.read_and_decode_lines2()
                 self.idx = 0 #! start index
 
             self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, \
@@ -59,22 +60,21 @@ class DataArgumentationLayer(caffe.Layer):
         top[4].reshape(n_images, channels, out_size_y, out_size_x) #! obj labels  # 4
         top[5].reshape(n_images, channels, out_size_y, out_size_x) #! cvg block   # 4
         
-        
-    def forward(self, bottom, top):
 
+    def forward(self, bottom, top):
         for index in xrange(0, self.batch_size, 1):
             img = cv.imread(self.img_path[self.idx])
-            rect = self.rects[self.idx]
-            label = self.labels[self.idx]
-            
-            img, rect = self.__ae.random_argumentation(img, rect)
-            img, rect = self.__ae.resize_image_and_labels(img, rect)
-            foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
-            self.__ae.bounding_box_parameterized_labels(img, rect, label, self.stride)
+            rects = self.rects[self.idx]
+            labels = self.labels[self.idx]
 
+            img, rects = self.__ae.random_argumentation(img, rects)
+            img, rects = self.__ae.resize_image_and_labels(img, rects)
+            foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
+            self.__ae.bounding_box_parameterized_labels(img, rects, labels)
+            
             img = img.swapaxes(2, 0)
             img = img.swapaxes(2, 1)
-            
+
             top[0].data[index] = img
             top[1].data[index] = foreground_labels.copy()
             top[2].data[index] = boxes_labels.copy()
@@ -114,3 +114,23 @@ class DataArgumentationLayer(caffe.Layer):
             labels.append(int(line_val[-1]))
         
         return np.array(img_path), np.array(rects), np.array(labels)
+
+    def read_and_decode_lines2(self):
+        lines = [line.rstrip('\n')
+                 for line in open(self.train_fn)
+        ]
+        im_paths = []
+        rects = []
+        labels = []
+        for line in lines:
+            segment = line.split(',')
+            im_paths.append(str(segment[0]))
+            labs = []
+            bbox = []
+            for index in xrange(1, len(segment), 1):
+                seg = segment[index].split(' ')
+                bbox.append(map(int, seg[:-1]))
+                labs.append(int(seg[-1]))
+            labels.append(labs)
+            rects.append(bbox)
+        return np.array(im_paths), np.array(rects), np.array(labels)

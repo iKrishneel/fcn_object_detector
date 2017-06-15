@@ -15,6 +15,7 @@ import imgaug.imgaug as ia
 import imgaug.imgaug
 import imgaug.imgaug.augmenters as iaa
 
+# import matplotlib.pyplot as plt
 
 """
 Class for computing intersection over union(IOU)
@@ -105,8 +106,6 @@ class ArgumentationEngine(object):
 
         return (foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label)
 
-
-
     """
     Function to resize image and the labels
     """     
@@ -139,16 +138,15 @@ class ArgumentationEngine(object):
     """
     Function random argumentation of images
     """     
-    def random_argumentation(self, image, rect): 
+    def random_argumentation(self, image, rects): 
         
         #! flip image
         flip_flag = random.randint(-1, 2)
-
         if flip_flag < 2 and flip_flag > -2:
             img_flip, rect_flips = self.flip_image(image.copy(), rects, flip_flag)
         else:
             img_flip = image.copy()
-            rect_flips = rect
+            rect_flips = rects
 
         #! zoom in
         is_crop = False  ##! ToDo: create union of all bounding box then crop
@@ -315,12 +313,12 @@ class ArgumentationEngine(object):
 
         return im_rot, rot_rects
 
-
+"""
 while True:
-    
-    img=cv.imread('/media/volume/Documents/datasets/VOCdevkit/VOC2007/JPEGImages/009949.jpg')
+    img=cv.imread('/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/JPEGImages/009949.jpg')
     ae = ArgumentationEngine(448, 448, 8, 3)
-    rects = np.array([[128, 121, 372, 229], [195, 241, 305, 134], [25, 90, 402, 222], [203, 81, 128, 137], [235, 116, 44, 43]], np.int32)
+    rects = np.array([[128, 121, 372, 229], [195, 241, 305, 134], [25, 90, 402, 222],\
+                      [203, 81, 128, 137], [235, 116, 44, 43]], np.int32)
     labels = np.array([0, 1, 2, 2, 2], np.int32)
 
     img2, rects2 = ae.random_argumentation(img, rects)
@@ -335,6 +333,13 @@ while True:
         x,y,w,h = rect
         cv.rectangle(img2, (x,y), (w+x, h+y), (0, random.randint(0, 255), random.randint(0, 255)),3)
 
+    for l in labels:
+        aa = b[l*4:l*4+4]
+        z = np.hstack((aa[0], aa[1], aa[2], aa[3]))
+        plt.imshow(z)
+        plt.show()
+
+        
     cv.namedWindow('test', cv.WINDOW_NORMAL)
     cv.imshow('test', img2)    
     cv.namedWindow('mapo', cv.WINDOW_NORMAL)
@@ -342,3 +347,4 @@ while True:
     key = cv.waitKey(0)                                                                    
     if key == ord('q'):                                                                   
         break
+"""
