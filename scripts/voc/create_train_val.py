@@ -14,7 +14,7 @@ class PascalVOT:
                         'cow', 'diningtable', 'dog', 'horse', \
                         'motorbike', 'person', 'pottedplant', \
                         'sheep', 'sofa', 'train', 'tvmonitor')
-        self.voc_root = vot_dir
+        self.vot_root = vot_dir
         self.img_dir_ = os.path.join(vot_dir, 'JPEGImages/')
         self.ann_dir_ = os.path.join(vot_dir, 'Annotations/')
         self.set_dir_ = os.path.join(vot_dir, 'ImageSets', 'Main/')
@@ -34,17 +34,15 @@ class PascalVOT:
     #! just read one
     def create(self):
 
-        out_dir = '/home/krishneel/Desktop/'
-        
         type_train = False
         if type_train:
             lines = self.read_textfile(self.train_file)
-            outfile_name = out_dir + 'train.txt'
+            outfile_name = self.vot_root + 'train.txt'
         else:
             lines = self.read_textfile(self.val_file)
-            outfile_name = out_dir + 'val.txt'
+            outfile_name = self.vot_root + 'val.txt'
 
-        label_manifest = out_dir + 'class_label_names.txt'
+        label_manifest = self.vot_root + 'class_label_names.txt'
         with open(outfile_name, 'w') as text_file:
             for line in lines:
                 indx = line.split(' ')[0]
