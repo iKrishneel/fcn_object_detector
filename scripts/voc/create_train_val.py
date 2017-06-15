@@ -7,17 +7,17 @@ import cv2 as cv
 from bs4 import BeautifulSoup
 
 class PascalVOT:
-    def __init__(self, vot_dir):
+    def __init__(self, voc_dir):
     
         self.classes = ('aeroplane', 'bicycle', 'bird', 'boat', \
                         'bottle', 'bus', 'car', 'cat', 'chair', \
                         'cow', 'diningtable', 'dog', 'horse', \
                         'motorbike', 'person', 'pottedplant', \
                         'sheep', 'sofa', 'train', 'tvmonitor')
-        self.vot_root = vot_dir
-        self.img_dir_ = os.path.join(vot_dir, 'JPEGImages/')
-        self.ann_dir_ = os.path.join(vot_dir, 'Annotations/')
-        self.set_dir_ = os.path.join(vot_dir, 'ImageSets', 'Main/')
+        self.voc_root = voc_dir
+        self.img_dir_ = os.path.join(voc_dir, 'JPEGImages/')
+        self.ann_dir_ = os.path.join(voc_dir, 'Annotations/')
+        self.set_dir_ = os.path.join(voc_dir, 'ImageSets', 'Main/')
         
         suffix_train = '_train.txt'
         suffix_val = '_val.txt'
@@ -37,12 +37,12 @@ class PascalVOT:
         type_train = False
         if type_train:
             lines = self.read_textfile(self.train_file)
-            outfile_name = self.vot_root + 'train.txt'
+            outfile_name = self.voc_root + 'train.txt'
         else:
             lines = self.read_textfile(self.val_file)
-            outfile_name = self.vot_root + 'val.txt'
+            outfile_name = self.voc_root + 'val.txt'
 
-        label_manifest = self.vot_root + 'class_label_names.txt'
+        label_manifest = self.voc_root + 'class_label_names.txt'
         with open(outfile_name, 'w') as text_file:
             for line in lines:
                 indx = line.split(' ')[0]
@@ -106,11 +106,11 @@ def main(argv):
     if len(argv) < 2:
         raise Exception('Provide path to /VOC<YEAR>/ImageSets/Main/')
         
-    vot_dir = str(argv[1])
-    if not os.path.isdir(vot_dir):
+    voc_dir = str(argv[1])
+    if not os.path.isdir(voc_dir):
         raise Exception('VOT Directory does not exist')
         
-    vot = PascalVOT(vot_dir)
+    vot = PascalVOT(voc_dir)
 
 
 def test(argv):
