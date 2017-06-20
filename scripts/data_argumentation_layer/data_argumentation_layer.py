@@ -147,12 +147,13 @@ class DataArgumentationTestLayer(caffe.Layer):
         self.batch_size = bottom[0].data.shape[0]
     
     def forward(self, bottom, top):
-        image = bottom[0].data[0]
-        image = image.transpose((1, 2, 0))
-
-        # cv.namedWindow('timage', cv.WINDOW_NORMAL)
-        # cv.imshow('timage', image)
-        # cv.waitKey(0)
+        for i in xrange(0, self.batch_size, 1):
+            image = bottom[0].data[i]
+            image = image.transpose((1, 2, 0))
+            
+            #cv.namedWindow('timage', cv.WINDOW_NORMAL)
+            #cv.imshow('timage', image)
+            #cv.waitKey(3)
 
     def bottom(self, bottom, top):
         pass

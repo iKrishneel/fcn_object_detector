@@ -10,7 +10,7 @@ layer {
   python_param {
     module: 'data_argumentation_layer'
     layer: 'DataArgumentationLayer'
-    param_str : "448,448,16,20,1,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/train.txt"
+    param_str : "448,448,16,20,32,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/train.txt"
   }
   include: { 
     phase: TRAIN 

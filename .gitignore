@@ -33,3 +33,7 @@ msvc/Release/
 tags
 mkmf.log
 *.pyc
+*.caffemodel
+*.solverstate
+/snapshot
+*.log
