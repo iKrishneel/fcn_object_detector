@@ -2,7 +2,7 @@ net: "train_val.prototxt"
 snapshot_prefix: "snapshots/snapshot"
 base_lr: 1e-02
 max_iter: 1
-iter_size: 10
+iter_size: 1
 ## test_iter: 1000
 ## test_interval: 1000
 lr_policy: "step"
