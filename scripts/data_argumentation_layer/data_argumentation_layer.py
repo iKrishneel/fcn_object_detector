@@ -32,7 +32,6 @@ class DataArgumentationLayer(caffe.Layer):
                 raise ValueError('Provide the dataset textfile')
 
             else:
-                # self.img_path, self.rects, self.labels = self.read_and_decode_lines()
                 self.img_path, self.rects, self.labels = self.read_and_decode_lines2()
                 self.idx = 0 #! start index
 
@@ -41,8 +40,6 @@ class DataArgumentationLayer(caffe.Layer):
 
         except ValueError:
             raise ValueError('Parameter string missing or data type is wrong!')
-
-        
             
     def reshape(self, bottom, top):
         #! check input dimensions
@@ -151,9 +148,9 @@ class DataArgumentationTestLayer(caffe.Layer):
             image = bottom[0].data[i]
             image = image.transpose((1, 2, 0))
             
-            #cv.namedWindow('timage', cv.WINDOW_NORMAL)
-            #cv.imshow('timage', image)
-            #cv.waitKey(3)
+            # cv.namedWindow('timage', cv.WINDOW_NORMAL)
+            # cv.imshow('timage', image)
+            # cv.waitKey(3)
 
     def bottom(self, bottom, top):
         pass
