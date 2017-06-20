@@ -29,20 +29,22 @@ class PascalVOT:
         self.__img_ext = '.jpg'
         self.__ano_ext = '.xml'
 
-        self.create()
+        
+        lines = self.read_textfile(self.train_file)
+        outfile_name = self.voc_root + 'train.txt'
+        self.create(lines, outfile_name)
 
-    #! just read one
-    def create(self):
-
-        type_train = False
-        if type_train:
-            lines = self.read_textfile(self.train_file)
-            outfile_name = self.voc_root + 'train.txt'
-        else:
-            lines = self.read_textfile(self.val_file)
-            outfile_name = self.voc_root + 'val.txt'
+        lines = self.read_textfile(self.val_file)
+        outfile_name = self.voc_root + 'val.txt'
+        self.create(lines, outfile_name)
 
         label_manifest = self.voc_root + 'class_label_names.txt'
+        with open(label_manifest, 'w') as f:
+            for i, c in enumerate(self.classes):
+                f.write(str(i) + ' ' + c + '\n')
+
+    #! just read one
+    def create(self, lines, outfile_name):
         with open(outfile_name, 'w') as text_file:
             for line in lines:
                 indx = line.split(' ')[0]
@@ -61,10 +63,6 @@ class PascalVOT:
                     str_labels = str_labels[:-1]
                     str_labels += '\n'
                 text_file.write(str_labels)
-        
-        with open(label_manifest, 'w') as f:
-            for i, c in enumerate(self.classes):
-                f.write(str(i) + ' ' + c + '\n')
 
     def get_bounding_box(self, filename):
         annotation = self.load_annotation(filename)
