@@ -15,7 +15,6 @@ import imgaug.imgaug as ia
 import imgaug.imgaug
 import imgaug.imgaug.augmenters as iaa
 
-# import matplotlib.pyplot as plt
 
 """
 Class for computing intersection over union(IOU)
@@ -51,7 +50,7 @@ class JaccardCoeff:
         return (x, y, w, h)
 
     def __area(self, rect):
-        return float(rect[2] * rect[3])
+        return np.float32(rect[2] * rect[3])
 
 
 class ArgumentationEngine(object):
@@ -62,7 +61,7 @@ class ArgumentationEngine(object):
         self.__num_classes = num_classes
         
         self.__jc = JaccardCoeff()
-        self.FORE_PROB_ = float(1.0)
+        self.FORE_PROB_ = np.float32(1.0)
         self.FLT_EPSILON_ = 0.5 #sys.float_info.epsilon
 
     def bounding_box_parameterized_labels(self, img, rects, labels):
@@ -97,7 +96,8 @@ class ArgumentationEngine(object):
                         size_labels[k + 2, j, i] = 1.0 / rect[2]
                         size_labels[k + 3, j, i] = 1.0 / rect[3]
 
-                        diff = float(boxes[j, i][2] * boxes[j ,i][3]) / float(rect[2] * rect[3])
+                        diff = np.float32(boxes[j, i][2] * boxes[j ,i][3]) / \
+                               np.float32(rect[2] * rect[3])
                         obj_labels[k:k+channel_stride, j, i] = diff
 
                         coverage_label[k:k+channel_stride, j, i] = region_labels[j, i]
@@ -118,13 +118,13 @@ class ArgumentationEngine(object):
                 img = cv.resize(image, resize_flag, cv.INTER_CUBIC)
                 img_list.append(img)
                 # resize label
-                ratio_x = float(image.shape[1]) / float(img.shape[1])
-                ratio_y = float(image.shape[0]) / float(img.shape[0])
+                ratio_x = np.float32(image.shape[1]) / np.float32(img.shape[1])
+                ratio_y = np.float32(image.shape[0]) / np.float32(img.shape[0])
 
-                x = float(rect[0])
-                y = float(rect[1])
-                w = float(rect[2])
-                h = float(rect[3])
+                x = np.float32(rect[0])
+                y = np.float32(rect[1])
+                w = np.float32(rect[2])
+                h = np.float32(rect[3])
             
                 xt = x / ratio_x
                 yt = y / ratio_y
@@ -151,13 +151,13 @@ class ArgumentationEngine(object):
         #! zoom in
         is_crop = False  ##! ToDo: create union of all bounding box then crop
         if is_crop:
-            scale_x = float(image.shape[1]) / float(rect[2])
-            scale_y = float(image.shape[0]) / float(rect[3])
+            scale_x = np.float32(image.shape[1]) / np.float32(rect[2])
+            scale_y = np.float32(image.shape[0]) / np.float32(rect[3])
             scale_x = int(math.floor(scale_x))
             scale_y = int(math.floor(scale_y))
 
-            enlarge_factor1 = random.uniform(1.0, float(scale_x))
-            enlarge_factor2 = random.uniform(1.0, float(scale_y))
+            enlarge_factor1 = random.uniform(1.0, np.float32(scale_x))
+            enlarge_factor2 = random.uniform(1.0, np.float32(scale_y))
             widths = (int(rect_flip[2] * enlarge_factor1), rect_flip[2] * enlarge_factor2)
             heights = (int(rect_flip[3] * enlarge_factor1), rect_flip[3] * enlarge_factor2)
             crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, \
@@ -172,7 +172,7 @@ class ArgumentationEngine(object):
         rot_image, rot_rects = self.rotate_image_with_rect(img_flip, rect_flips)
 
         #! normalize image
-        rot_mat = self.demean_rgb_image(rot_image)
+        rot_image = self.demean_rgb_image(rot_image)
         return (rot_image, rot_rects)
 
     """
@@ -254,10 +254,10 @@ class ArgumentationEngine(object):
     Function to demean rgb image using imagenet mean
     """
     def demean_rgb_image(self, im_rgb):
-        im_rgb = im_rgb.astype(float)
-        im_rgb[:, :, 0] -= float(104.0069879317889)
-        im_rgb[:, :, 1] -= float(116.66876761696767)
-        im_rgb[:, :, 2] -= float(122.6789143406786)
+        im_rgb = im_rgb.astype(np.float32)
+        im_rgb[:, :, 0] -= np.float32(104.0069879317889)
+        im_rgb[:, :, 1] -= np.float32(116.66876761696767)
+        im_rgb[:, :, 2] -= np.float32(122.6789143406786)
         im_rgb = (im_rgb - im_rgb.min())/(im_rgb.max() - im_rgb.min())
         return im_rgb
 
@@ -331,14 +331,15 @@ while True:
 
     for rect in rects2:
         x,y,w,h = rect
-        cv.rectangle(img2, (x,y), (w+x, h+y), (0, random.randint(0, 255), random.randint(0, 255)),3)
+        cv.rectangle(img2, (x,y), (w+x, h+y), (random.randint(0, 255), \
+                                               random.randint(0, 255), random.randint(0, 255)),3)
 
     for l in labels:
         aa = b[l*4:l*4+4]
         z = np.hstack((aa[0], aa[1], aa[2], aa[3]))
+        import matplotlib.pyplot as plt
         plt.imshow(z)
         plt.show()
-
         
     cv.namedWindow('test', cv.WINDOW_NORMAL)
     cv.imshow('test', img2)    

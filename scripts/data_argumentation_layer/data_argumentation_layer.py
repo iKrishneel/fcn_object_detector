@@ -71,7 +71,7 @@ class DataArgumentationLayer(caffe.Layer):
             img, rects = self.__ae.resize_image_and_labels(img, rects)
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
             self.__ae.bounding_box_parameterized_labels(img, rects, labels)
-            
+
             img = img.swapaxes(2, 0)
             img = img.swapaxes(2, 1)
 
@@ -134,3 +134,25 @@ class DataArgumentationLayer(caffe.Layer):
             labels.append(labs)
             rects.append(bbox)
         return np.array(im_paths), np.array(rects), np.array(labels)
+
+
+class DataArgumentationTestLayer(caffe.Layer):
+
+    def setup(self, bottom, top):
+        pass
+        
+    def reshape(self, bottom, top):
+        self.image_size_y = bottom[0].data.shape[2]
+        self.image_size_x = bottom[0].data.shape[3]
+        self.batch_size = bottom[0].data.shape[0]
+    
+    def forward(self, bottom, top):
+        image = bottom[0].data[0]
+        image = image.transpose((1, 2, 0))
+
+        # cv.namedWindow('timage', cv.WINDOW_NORMAL)
+        # cv.imshow('timage', image)
+        # cv.waitKey(0)
+
+    def bottom(self, bottom, top):
+        pass
