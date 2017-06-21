@@ -10,7 +10,7 @@ layer {
   python_param {
     module: 'data_argumentation_layer'
     layer: 'DataArgumentationLayer'
-    param_str : "448,448,16,20,20,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/train.txt"
+    param_str : "448,448,16,3,20,/home/krishneel/Desktop/dataset/train3.txt"
   }
   include: { 
     phase: TRAIN 
@@ -886,7 +886,7 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 20  ## num_class
+    num_output: 3  ## num_class
     kernel_size: 1
     weight_filler {
       type: "xavier"
@@ -919,7 +919,7 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 80  ## 4 * num_class
+    num_output: 12  ## 4 * num_class
     kernel_size: 1
     weight_filler {
       type: "xavier"
