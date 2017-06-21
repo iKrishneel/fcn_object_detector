@@ -149,21 +149,24 @@ class ArgumentationEngine(object):
             rect_flips = rects
 
         #! zoom in
-        is_crop = False  ##! ToDo: create union of all bounding box then crop
-        if is_crop:
+        is_crop = True  ##! ToDo: create union of all bounding box then crop
+        if is_crop and len(rects) == 1:
+            rect = rects[0]
+            rect_flip = rect_flips[0]
             scale_x = np.float32(image.shape[1]) / np.float32(rect[2])
             scale_y = np.float32(image.shape[0]) / np.float32(rect[3])
             scale_x = int(math.floor(scale_x))
             scale_y = int(math.floor(scale_y))
 
-            enlarge_factor1 = random.uniform(1.0, np.float32(scale_x))
-            enlarge_factor2 = random.uniform(1.0, np.float32(scale_y))
+            enlarge_factor1 = random.uniform(1.0, np.float32(scale_x/1.0))
+            enlarge_factor2 = random.uniform(1.0, np.float32(scale_y/1.0))
+
             widths = (int(rect_flip[2] * enlarge_factor1), rect_flip[2] * enlarge_factor2)
             heights = (int(rect_flip[3] * enlarge_factor1), rect_flip[3] * enlarge_factor2)
             crop_image, crop_rect = self.crop_image_dimension(img_flip, rect_flip, \
                                                               widths, heights)
-            rect_flip = crop_rect
-            img_flip = crop_image.cop()
+            rect_flips[0] = crop_rect
+            img_flip = crop_image.copy()
 
         #! color arugmentation
         img_flip = self.color_space_argumentation(img_flip)
@@ -183,6 +186,35 @@ class ArgumentationEngine(object):
         y = (rect[1] + rect[3]/2) - heights[0]
         w = widths[1] + widths[0]
         h = heights[1] + heights[0]
+
+        ## center 
+        cx, cy = (rect[0] + rect[2]/2.0, rect[1] + rect[3]/2.0)
+        shift_x, shift_y = (random.randint(0, int(w/2)), random.randint(0, int(h/2)))
+        cx = (cx + shift_x) if random.randint(0, 1) else (cx - shift_x)
+        cy = (cy + shift_y) if random.randint(0, 1) else (cy - shift_y)
+        
+        nx = int(cx - (w / 2))
+        ny = int(cy - (h / 2))
+        nw = int(w)
+        nh = int(h)
+        
+        # img2 = image.copy()
+        # cv.rectangle(img2, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 4)
+
+        if nx > x:
+            nx = x
+            nw -=  np.abs(nx - x)
+        if ny > y:
+            ny = y
+            nh -=  np.abs(ny - y)
+        if nx + nw < x + w:
+            nx += ((x+w) - (nx+nw))
+        if ny + nh < y + h:
+            ny += ((y+h) - (ny+nh))
+
+        x = nx; y = ny; w = nw; h = nh
+        # cv.rectangle(img2, (int(nx), int(ny)), (int(nx + nw), int(ny + nqh)), (255, 0, 255), 4)
+        # cv.imshow("img2", img2)
 
         x = 0 if x < 0 else x
         y = 0 if y < 0 else y
@@ -285,7 +317,7 @@ class ArgumentationEngine(object):
     """
     def rotate_image_with_rect(self, image, rects):
         center = (image.shape[1]/2, image.shape[0]/2)
-        angle = float(random.randint(-5, 5))  ##! TODO: add as hyperparam
+        angle = float(random.randint(-50, 50))  ##! TODO: add as hyperparam
         rot_mat = cv.getRotationMatrix2D(center, angle, 1)
         im_rot = cv.warpAffine(image, rot_mat, (image.shape[1], image.shape[0]))
         
@@ -315,37 +347,40 @@ class ArgumentationEngine(object):
 
 """
 while True:
-    img=cv.imread('/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/JPEGImages/009949.jpg')
-    ae = ArgumentationEngine(448, 448, 8, 3)
-    rects = np.array([[128, 121, 372, 229], [195, 241, 305, 134], [25, 90, 402, 222],\
-                      [203, 81, 128, 137], [235, 116, 44, 43]], np.int32)
-    labels = np.array([0, 1, 2, 2, 2], np.int32)
+    img=cv.imread('/home/krishneel/Desktop/dataset/cheezit/00000001.jpg')
+    ae = ArgumentationEngine(448/2, 448/2, 16, 1)
+    rects = np.array([[361, 198, 100, 134]])
+    # , [195, 241, 305, 134], [25, 90, 402, 222],\
+    #                   [203, 81, 128, 137], [235, 116, 44, 43]], np.int32)
+    labels = np.array([0] #, 1, 2, 2, 2]
+                      , np.int32)
 
     img2, rects2 = ae.random_argumentation(img, rects)
     img2, rects2 = ae.resize_image_and_labels(img2, rects2)
 
     a,b,c,d,e = ae.bounding_box_parameterized_labels(img2, rects2, labels)
 
-    z = np.hstack((a[0], a[1], a[2]))
-    print z.shape
+    #z = np.hstack((a[0], a[1], a[2]))
+    print img2.shape
 
     for rect in rects2:
         x,y,w,h = rect
         cv.rectangle(img2, (x,y), (w+x, h+y), (random.randint(0, 255), \
                                                random.randint(0, 255), random.randint(0, 255)),3)
 
-    for l in labels:
-        aa = b[l*4:l*4+4]
-        z = np.hstack((aa[0], aa[1], aa[2], aa[3]))
-        import matplotlib.pyplot as plt
-        plt.imshow(z)
-        plt.show()
+    # for l in labels:
+    #     aa = b[l*4:l*4+4]
+    #     z = np.hstack((aa[0], aa[1], aa[2], aa[3]))
+    #     import matplotlib.pyplot as plt
+    #     plt.imshow(z)
+    #     plt.show()
         
     cv.namedWindow('test', cv.WINDOW_NORMAL)
     cv.imshow('test', img2)    
     cv.namedWindow('mapo', cv.WINDOW_NORMAL)
-    cv.imshow('mapo', z)    
+    cv.imshow('mapo', a[0])    
     key = cv.waitKey(0)                                                                    
     if key == ord('q'):                                                                   
         break
+
 """
