@@ -33,7 +33,7 @@ class DataArgumentationLayer(caffe.Layer):
                 raise ValueError('Provide the dataset textfile')
 
             else:
-                self.img_path, self.rects, self.labels = self.read_and_decode_lines2()
+                self.img_path, self.rects, self.labels = self.read_and_decode_lines()
                 self.idx = 0 #! start index
 
             self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, \
@@ -68,7 +68,7 @@ class DataArgumentationLayer(caffe.Layer):
             img = cv.imread(self.img_path[self.idx])
             rects = self.rects[self.idx]
             labels = self.labels[self.idx]
-
+            
             img, rects = self.__ae.random_argumentation(img, rects)
             img, rects = self.__ae.resize_image_and_labels(img, rects)
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
@@ -110,8 +110,12 @@ class DataArgumentationLayer(caffe.Layer):
             rect = []
             for i in xrange(1, len(line_val)-1, 1):
                 rect.append(int(line_val[i]))
+            rect = np.array([rect])
             rects.append(rect)
-            labels.append(int(line_val[-1]))
+            
+            label = int(line_val[-1])
+            label = np.array([label])
+            labels.append(label)
         
         return np.array(img_path), np.array(rects), np.array(labels)
 
