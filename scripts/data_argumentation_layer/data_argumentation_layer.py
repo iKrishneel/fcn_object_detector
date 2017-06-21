@@ -74,6 +74,13 @@ class DataArgumentationLayer(caffe.Layer):
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
             self.__ae.bounding_box_parameterized_labels(img, rects, labels)
 
+            ##!
+            # x,y,w,h = rects[0]
+            # cv.rectangle(img, (x,y), (x+w, y+h), (0, 255,0), 4)
+            # cv.imshow("img", img)
+            # cv.waitKey(0)
+            ##!
+            
             img = img.swapaxes(2, 0)
             img = img.swapaxes(2, 1)
 
@@ -113,10 +120,9 @@ class DataArgumentationLayer(caffe.Layer):
             rect = np.array([rect])
             rects.append(rect)
             
-            label = int(line_val[-1])
+            label = int(line_val[-1]) - 1 ##> change to auto rank
             label = np.array([label])
             labels.append(label)
-        
         return np.array(img_path), np.array(rects), np.array(labels)
 
     def read_and_decode_lines2(self):
