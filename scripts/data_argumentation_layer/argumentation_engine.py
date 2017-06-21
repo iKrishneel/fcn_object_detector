@@ -221,7 +221,7 @@ class ArgumentationEngine(object):
         w = ((w - (w + x) - image.shape[1])) if x > image.shape[1] else w
         h = ((h - (h + y) - image.shape[0])) if y > image.shape[0] else h
 
-        roi = image[y:y+h, x:x+w].copy()
+        roi = image[int(y):int(y+h), int(x):int(x+w)].copy()
         new_rect = [int(rect[0] - x), int(rect[1] - y), rect[2], rect[3]]
 
         return roi, new_rect
