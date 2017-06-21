@@ -2,6 +2,7 @@
 
 import os
 import caffe
+import random
 import numpy as np
 import cv2 as cv
 import argumentation_engine as ae
@@ -38,6 +39,10 @@ class DataArgumentationLayer(caffe.Layer):
             self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, \
                                                self.stride, self.num_classes)
 
+            if self.randomize:
+                random.seed()
+                self.idx = random.randint(0, (len(self.img_path))-1)
+            
         except ValueError:
             raise ValueError('Parameter string missing or data type is wrong!')
             
@@ -79,9 +84,7 @@ class DataArgumentationLayer(caffe.Layer):
             top[4].data[index] = obj_labels.copy()
             top[5].data[index] = coverage_label.copy()
 
-            self.idx += 1
-            if self.idx >= len(self.img_path):
-                self.idx = 0
+            self.idx = random.randint(0, (len(self.img_path))-1)
 
     def backward(self, top, propagate_down, bottom):
         pass

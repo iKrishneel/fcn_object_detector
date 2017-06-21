@@ -1,72 +1,9 @@
 layer {
-  type: 'Python'
-  name: 'Argumentation'
+  name: "data"
+  type: "Input"
   top: "data"
-  top: "coverage-label"
-  top: "bbox-label"
-  top: "size-block"
-  top: "obj-block"
-  top: "coverage-block"
-  python_param {
-    module: 'data_argumentation_layer'
-    layer: 'DataArgumentationLayer'
-    param_str : "448,448,16,20,20,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/train.txt"
-  }
-  include: { 
-    phase: TRAIN 
-  }
+  input_param { shape: { dim: 10 dim: 3 dim: 448 dim: 448 } }
 }
-layer {
-  type: 'Python'
-  name: 'Argumentation'
-  top: "data"
-  top: "coverage-label"
-  top: "bbox-label"
-  top: "size-block"
-  top: "obj-block"
-  top: "coverage-block"
-  python_param {
-    module: 'data_argumentation_layer'
-    layer: 'DataArgumentationLayer'
-    param_str : "448,448,16,20,10,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/val.txt"
-  }
-  include: { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bb-label-norm"
-  type: "Eltwise"
-  bottom: "bbox-label"
-  bottom: "size-block"
-  top: "bbox-label-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bb-obj-norm"
-  type: "Eltwise"
-  bottom: "bbox-label-norm"
-  bottom: "obj-block"
-  top: "bbox-obj-label-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-
 ################################################################
 ####### start of CNN
 ################################################################
@@ -929,83 +866,5 @@ layer {
       type: "constant"
       value: 0.0
     }
-  }
-}
-################################################################
-####### end of Auxillary Layers
-################################################################
-layer {  ## masks the box region
-  name: "bbox_mask"
-  type: "Eltwise"
-  bottom: "bboxes"
-  bottom: "coverage-block"
-  top: "bboxes-masked"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {  ## normalize by the box size
-  name: "bbox-norm"
-  type: "Eltwise"
-  bottom: "bboxes-masked"
-  bottom: "size-block"
-  top: "bboxes-masked-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bbox-obj-norm"
-  type: "Eltwise"
-  bottom: "bboxes-masked-norm"
-  bottom: "obj-block"
-  top: "bboxes-obj-masked-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bbox_loss"
-  type: "L1Loss"
-  bottom: "bboxes-obj-masked-norm"
-  bottom: "bbox-obj-label-norm"
-  top: "loss_bbox"
-  loss_weight: 2.0
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "coverage_loss"
-  type: "EuclideanLoss"
-  bottom: "coverage"
-  bottom: "coverage-label"
-  top: "loss_coverage"
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
   }
 }

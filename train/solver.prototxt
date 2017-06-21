@@ -1,6 +1,6 @@
 net: "train_val.prototxt"
 snapshot_prefix: "snapshots/snapshot"
-base_lr: 1e-04
+base_lr: 1e-05
 max_iter: 100000
 iter_size: 1
 ## test_iter: 1000
@@ -13,5 +13,5 @@ stepsize: 10000
 snapshot: 500
 solver_type: ADAM
 solver_mode: GPU
-display: 100
+display: 20
 debug_info: false
