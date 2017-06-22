@@ -1,72 +1,9 @@
 layer {
-  type: 'Python'
-  name: 'Argumentation'
+  name: "data"
+  type: "Input"
   top: "data"
-  top: "coverage-label"
-  top: "bbox-label"
-  top: "size-block"
-  top: "obj-block"
-  top: "coverage-block"
-  python_param {
-    module: 'data_argumentation_layer'
-    layer: 'DataArgumentationLayer'
-    param_str : "448,448,16,20,32,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/train.txt"
-  }
-  include: { 
-    phase: TRAIN 
-  }
+  input_param { shape: { dim: 10 dim: 3 dim: 448 dim: 448 } }
 }
-layer {
-  type: 'Python'
-  name: 'Argumentation'
-  top: "data"
-  top: "coverage-label"
-  top: "bbox-label"
-  top: "size-block"
-  top: "obj-block"
-  top: "coverage-block"
-  python_param {
-    module: 'data_argumentation_layer'
-    layer: 'DataArgumentationLayer'
-    param_str : "448,448,16,20,10,/home/krishneel/Documents/datasets/VOCdevkit/VOC2007/val.txt"
-  }
-  include: { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bb-label-norm"
-  type: "Eltwise"
-  bottom: "bbox-label"
-  bottom: "size-block"
-  top: "bbox-label-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bb-obj-norm"
-  type: "Eltwise"
-  bottom: "bbox-label-norm"
-  bottom: "obj-block"
-  top: "bbox-obj-label-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-
 ################################################################
 ####### start of CNN
 ################################################################
@@ -76,11 +13,11 @@ layer {
   bottom: "data"
   top: "conv1_1"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -128,11 +65,11 @@ layer {
   # bottom: "conv1_1/bn_sc"
   top: "conv1_2"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -172,11 +109,11 @@ layer {
   bottom: "pool1"
   top: "conv2_1"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -205,11 +142,11 @@ layer {
   bottom: "conv2_1"
   top: "conv2_2"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -249,11 +186,11 @@ layer {
   bottom: "pool2"
   top: "conv3_1"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -282,11 +219,11 @@ layer {
   bottom: "conv3_1"
   top: "conv3_2"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -315,11 +252,11 @@ layer {
   bottom: "conv3_2"
   top: "conv3_3"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -359,11 +296,11 @@ layer {
   bottom: "pool3"
   top: "conv4_1"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -392,11 +329,11 @@ layer {
   bottom: "conv4_1"
   top: "conv4_2"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -425,11 +362,11 @@ layer {
   bottom: "conv4_2"
   top: "conv4_3"
   param {
-    lr_mult: 0.0
-    decay_mult: 0.0
+    lr_mult: 1.0
+    decay_mult: 1.0
   }
   param {
-    lr_mult: 0.0
+    lr_mult: 2.0
     decay_mult: 0.0
   }
   convolution_param {
@@ -484,7 +421,7 @@ layer {
   bottom: "pool4/1x1"
   top: "conv4_3/1x1"
   param {
-    lr_mult: 1.0
+    lr_mult: 10.0
     decay_mult: 1.0
   }
   param {
@@ -550,7 +487,7 @@ layer {
   bottom: "pool4/2x2"
   top: "conv4_3/2x2"
   param {
-    lr_mult: 1.0
+    lr_mult: 10.0
     decay_mult: 1.0
   }
   param {
@@ -616,7 +553,7 @@ layer {
   bottom: "pool4/4x4"
   top: "conv4_3/4x4"
   param {
-    lr_mult: 1.0
+    lr_mult: 10.0
     decay_mult: 1.0
   }
   param {
@@ -682,7 +619,7 @@ layer {
   bottom: "pool4/7x7"
   top: "conv4_3/7x7"
   param {
-    lr_mult: 1.0
+    lr_mult: 10.0
     decay_mult: 1.0
   }
   param {
@@ -875,7 +812,6 @@ layer {
 layer {
   name: "cvg/classifier"
   type: "Convolution"
-  ##! bottom:  "conv4_3/conv5_3/concat/bn_sc"
   bottom: "dropout5"
   top: "cvg/classifier"
   param {
@@ -891,7 +827,7 @@ layer {
     kernel_size: 1
     weight_filler {
       type: "xavier"
-      std: 0.03
+      std: 0.3
     }
     bias_filler {
       type: "constant"
@@ -924,89 +860,11 @@ layer {
     kernel_size: 1
     weight_filler {
       type: "xavier"
-      std: 0.03
+      std: 0.3
     }
     bias_filler {
       type: "constant"
       value: 0.0
     }
-  }
-}
-################################################################
-####### end of Auxillary Layers
-################################################################
-layer {  ## masks the box region
-  name: "bbox_mask"
-  type: "Eltwise"
-  bottom: "bboxes"
-  bottom: "coverage-block"
-  top: "bboxes-masked"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {  ## normalize by the box size
-  name: "bbox-norm"
-  type: "Eltwise"
-  bottom: "bboxes-masked"
-  bottom: "size-block"
-  top: "bboxes-masked-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bbox-obj-norm"
-  type: "Eltwise"
-  bottom: "bboxes-masked-norm"
-  bottom: "obj-block"
-  top: "bboxes-obj-masked-norm"
-  eltwise_param {
-    operation: PROD
-  }
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "bbox_loss"
-  type: "L1Loss"
-  bottom: "bboxes-obj-masked-norm"
-  bottom: "bbox-obj-label-norm"
-  top: "loss_bbox"
-  loss_weight: 2.0
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
-  }
-}
-layer {
-  name: "coverage_loss"
-  type: "EuclideanLoss"
-  bottom: "coverage"
-  bottom: "coverage-label"
-  top: "loss_coverage"
-  include { 
-     phase: TRAIN 
-  }
-  include { 
-     phase: TEST
   }
 }
