@@ -30,7 +30,7 @@ class FCNObjectDetector():
         self.__im_height = None
         self.__bridge = CvBridge()
 
-        self.__rcnn = RCNNDetector()
+        # self.__rcnn = RCNNDetector()
 
         self.__prob_thresh = rospy.get_param('~detection_threshold', 0.5)  #! threshold for masking the detection
         self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
@@ -59,13 +59,13 @@ class FCNObjectDetector():
         if cv_img is None:
             return
 
-        random.seed(10)
+        #random.seed()
         input_image = cv_img.copy()
         
         caffe.set_device(self.__device_id)
         caffe.set_mode_gpu()
 
-        cv_img = self.demean_rgb_image(cv_img)
+        # cv_img = self.demean_rgb_image(cv_img)
         # cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
         self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', cv_img)
         output = self.__net.forward()
@@ -73,10 +73,11 @@ class FCNObjectDetector():
         probability_map = self.__net.blobs['coverage'].data[0]
         bbox_map = self.__net.blobs['bboxes'].data[0]
 
-        
+        # self.vis_square(probability_map)
 
         object_boxes = []
         label_color = []
+        object_labels = []
         for i in xrange(0, 10, 1):
             r = random.random() * 255
             g = random.random() * 255
@@ -86,7 +87,8 @@ class FCNObjectDetector():
         
         for index, p_map in enumerate(probability_map):
             idx = index * 4
-            propose_boxes, propose_cvgs, mask = self.gridbox_to_boxes(p_map, bbox_map[idx:idx+4], self.__prob_thresh)
+            propose_boxes, propose_cvgs, mask = self.gridbox_to_boxes(p_map, bbox_map[idx:idx+4], \
+                                                                      self.__prob_thresh)
             obj_boxes = self.vote_boxes(propose_boxes, propose_cvgs, mask)
             if obj_boxes:
                 ## create unique color
@@ -97,12 +99,16 @@ class FCNObjectDetector():
                 for box in obj_boxes:
                     #label_color.append((b, g, r))
                     object_boxes.append(box)
+                    object_labels.append(index)
 
                 # print index
             
         label_color = np.asarray(label_color, dtype=np.float)
         object_boxes = np.asarray(object_boxes, dtype=np.int)
+        object_labels = np.asarray(object_labels, dtype=np.int)
 
+        print object_labels
+        
         if not len(object_boxes):
             rospy.logwarn("not detection")
             return
@@ -110,7 +116,7 @@ class FCNObjectDetector():
         object_boxes = self.resize_detection(input_image.shape, object_boxes)
 
         ## give results to rcnn
-        object_boxes, object_labels = self.__rcnn.run_detector(input_image, object_boxes)
+        # object_boxes, object_labels = self.__rcnn.run_detector(input_image, object_boxes)
         # self.__rcnn.run_detector(input_image, object_boxes)
 
         if object_labels.shape[0] != object_boxes.shape[0]:
@@ -121,12 +127,11 @@ class FCNObjectDetector():
         im_out = cv_img.copy()
         [
             [
-                #cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), label_color[label-1], -1),
+                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), label_color[label-1], -1),
                 cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4)
             ] for box, label in zip(object_boxes, object_labels)
         ]
 
-        
         ##! publish
         is_publish = False
         if is_publish:
@@ -144,12 +149,12 @@ class FCNObjectDetector():
             rects.header = image_msg.header
             self.pub_box.publish(rects)
 
-        # alpha = 0.3
-        # cv.addWeighted(im_out, alpha, cv_img, 1.0 - alpha, 0, im_out)
+        alpha = 0.3
+        cv.addWeighted(im_out, alpha, cv_img, 1.0 - alpha, 0, im_out)
     
         cv.namedWindow('detection', cv.WINDOW_NORMAL)
-        #cv.imshow('detection', im_out)
-        cv.imshow('detection', cv_img)
+        cv.imshow('detection', im_out)
+        # cv.imshow('detection', cv_img)
         cv.waitKey(3)
 
 
