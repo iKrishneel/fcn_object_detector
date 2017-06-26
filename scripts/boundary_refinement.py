@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+###########################################################################
+### Algorithm to take the pseudo-ground truth label given by the tracker
+### and refines the object region based on pyramidal deep matching 
+###########################################################################
+###########################################################################
+## Copyright (C) 2017 by Krishneel Chaudhary @ JSK Lab,
+## The University of Tokyo, Japan
+###########################################################################
+
 import sys
 import os
 import rospy
