@@ -7,6 +7,9 @@ import numpy as np
 import cv2 as cv
 import argumentation_engine as ae
 
+"""
+Class for bounding box detection
+"""
 class DataArgumentationLayer(caffe.Layer):
 
     def setup(self, bottom, top):
@@ -33,7 +36,7 @@ class DataArgumentationLayer(caffe.Layer):
                 raise ValueError('Provide the dataset textfile')
 
             else:
-                self.img_path, self.rects, self.labels = self.read_and_decode_lines()
+                self.img_paths, self.rects, self.labels = self.read_and_decode_lines()
                 self.idx = 0 #! start index
 
             self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, \
@@ -41,7 +44,7 @@ class DataArgumentationLayer(caffe.Layer):
 
             if self.randomize:
                 random.seed()
-                self.idx = random.randint(0, (len(self.img_path))-1)
+                self.idx = random.randint(0, (len(self.img_paths))-1)
             
         except ValueError:
             raise ValueError('Parameter string missing or data type is wrong!')
@@ -65,7 +68,7 @@ class DataArgumentationLayer(caffe.Layer):
 
     def forward(self, bottom, top):
         for index in xrange(0, self.batch_size, 1):
-            img = cv.imread(self.img_path[self.idx])
+            img = cv.imread(self.img_paths[self.idx])
             rects = self.rects[self.idx]
             labels = self.labels[self.idx]
             
@@ -91,7 +94,7 @@ class DataArgumentationLayer(caffe.Layer):
             top[4].data[index] = obj_labels.copy()
             top[5].data[index] = coverage_label.copy()
 
-            self.idx = random.randint(0, (len(self.img_path))-1)
+            self.idx = random.randint(0, (len(self.img_paths))-1)
 
     def backward(self, top, propagate_down, bottom):
         pass
@@ -108,12 +111,12 @@ class DataArgumentationLayer(caffe.Layer):
         if self.randomize:
             np.random.shuffle(lines)
 
-        img_path = []
+        img_paths = []
         rects = []
         labels = []
         for line in lines:
             line_val = line.split()
-            img_path.append(line_val[0])
+            img_paths.append(line_val[0])
             rect = []
             for i in xrange(1, len(line_val)-1, 1):
                 rect.append(int(line_val[i]))
@@ -123,7 +126,7 @@ class DataArgumentationLayer(caffe.Layer):
             label = int(line_val[-1]) - 1 ##> change to auto rank
             label = np.array([label])
             labels.append(label)
-        return np.array(img_path), np.array(rects), np.array(labels)
+        return np.array(img_paths), np.array(rects), np.array(labels)
 
     def read_and_decode_lines2(self):
         lines = [line.rstrip('\n')
@@ -145,7 +148,96 @@ class DataArgumentationLayer(caffe.Layer):
             rects.append(bbox)
         return np.array(im_paths), np.array(rects), np.array(labels)
 
+        
+"""
+Class for semantic segmentation based detection
+"""
+class DataArgumentationLayerFCN(caffe.Layer):
 
+    def setup(self, bottom, top):
+        #! check that inputs are pair of image and labels (bbox and label:int)
+        if len(bottom) > 0:
+            raise Exception('This layer takes no bottom')
+        
+        if len(top) < 2:
+            raise Exception('Current Implementation needs 2 top blobs')
+
+        try:
+            plist = self.param_str.split(',')
+            params = eval(self.param_str)
+            self.batch_size = int(params['batch_size'])
+            self.image_size_x = int(params['im_width'])
+            self.image_size_y = int(params['im_height'])
+            self.train_fn = str(params['filename'])
+            self.randomize = bool(params.get('randomize', True))
+            self.var_scale = bool(params.get('var_scale', False))
+            
+            if not os.path.isfile(self.train_fn):
+                raise ValueError('Provide the dataset textfile')
+            else:
+                self.img_paths, self.mask_labels = self.read_data_from_textfile()
+
+                if self.img_paths.shape != self.mask_labels.shape:
+                    raise Exception('label and image size are not equal')
+                
+                self.idx = 0 #! start index
+
+            self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
+
+            if self.randomize:
+                random.seed()
+                self.idx = random.randint(0, (len(self.img_paths))-1)
+            
+        except ValueError:
+            raise ValueError('Parameter string missing or data type is wrong!')
+            
+    def reshape(self, bottom, top):
+        #! check input dimensions
+        n_images = self.batch_size
+        top[0].reshape(n_images, 3, self.image_size_y, self.image_size_x)
+        top[1].reshape(n_images, 1, self.image_size_y, self.image_size_x)
+
+    def forward(self, bottom, top):
+        
+        for index in xrange(0, self.batch_size, 1):
+            im_rgb = cv.imread(self.img_paths[self.idx])
+            im_mask = cv.imread(self.mask_labels[self.idx])
+
+            rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask)
+
+            if len(label_datum.shape) < 3:
+                while len(template_datum.shape) < 3:
+                    self.idx = random.randint(0, len(self.img_paths)-1)
+                    im_rgb = cv.imread(self.img_paths[self.idx])
+                    im_mask = cv.imread(self.mask_labels[self.idx])
+
+                    rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask)
+
+            top[0].data[index] = rgb_datum.copy()
+            top[1].data[index] = label_datum.copy()
+
+            self.idx = random.randint(0, len(self.img_paths)-1)
+
+            
+    def backward(self, top, propagate_down, bottom):
+        pass
+        
+    def read_data_from_textfile(self):
+        lines = [line.rstrip('\n')
+                 for line in open(self.train_fn)
+        ]
+        img_paths = []
+        mask_labels = []
+        for index in xrange(0, len(lines), 2):
+            img_paths.append(lines[index].split()[0])
+            mask_labels.append(lines[index+1].split()[0])
+            
+        return np.array(img_paths), np.array(mask_labels)
+
+        
+"""
+Test debugging layer
+"""
 class DataArgumentationTestLayer(caffe.Layer):
 
     def setup(self, bottom, top):

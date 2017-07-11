@@ -15,6 +15,8 @@ import imgaug.imgaug as ia
 import imgaug.imgaug
 import imgaug.imgaug.augmenters as iaa
 
+(CV_MAJOR, CV_MINOR, _) = cv.__version__.split(".")
+
 
 """
 Class for computing intersection over union(IOU)
@@ -384,3 +386,201 @@ while True:
         break
 
 """
+
+class ArgumentationEngineFCN(object):
+    def __init__(self, im_width, im_height, var_scaling = False):
+        self.__in_size = (im_width, im_height)
+        self.__scales = np.array([3, 3.5, 4.0]) #! predefined scaling
+        self.__variable_scaling = var_scaling
+
+    def process2(self, in_rgb, in_mask):
+        flip_flag = random.randint(-1, 1)
+        im_rgb = cv.flip(in_rgb, flip_flag)
+        im_mask = cv.flip(in_mask, flip_flag)
+
+        if len(im_mask.shape) == 3:
+            im_mask = cv.cvtColor(im_mask, cv.COLOR_BGR2GRAY)
+    
+        return self.generate_argumented_data(im_rgb, im_mask)
+
+
+    def generate_argumented_data(self, im_rgb, in_mask):
+        im_mask, rect = self.create_mask_labels(in_mask)
+        if rect is None or im_mask is None:
+            return im_rgb, in_mask
+
+        x, y, w, h = rect
+        sindx = int(random.randint(0, len(self.__scales) - 1))
+        s = self.__scales[sindx]
+        bbox = self.get_region_bbox(im_rgb, rect, s)
+            
+        if self.__variable_scaling:
+            sindx = int(random.randint(0, len(self.__scales) - 1))
+            s = self.__scales[sindx]
+            bbox = self.get_region_bbox(im_rgb, rect, s)
+
+        x, y, w, h = rect
+        r = random.randint(-min(w/2, h/2), min(w/2, h/2))
+        box = bbox
+        box[0] = bbox[0] + r
+        box[1] = bbox[1] + r
+
+        x, y, w, h = box            
+        x2 = x + w
+        y2 = y + h
+        x = rect[0] if x > rect[0] else x
+        y = rect[1] if y > rect[1] else y
+        x = x + ((rect[0] + rect[2]) - x2) if x2 < rect[0] + rect[2] else x
+        y = y + ((rect[1] + rect[3]) - y2) if y2 < rect[1] + rect[3] else y
+        
+        #! boarder conditions
+        x = 0 if x < 0 else x
+        y = 0 if y < 0 else y
+        w = w-(x2-im_rgb.shape[1]) if x2 > im_rgb.shape[1] else w
+        h = h-(y2-im_rgb.shape[0]) if y2 > im_rgb.shape[0] else h
+
+        box[0] = x
+        box[1] = y
+            
+        rgb, mask = self.crop_and_resize_inputs(im_rgb, in_mask, box)
+
+        #####
+        ## ToDo: color space argumentation
+        ####
+        rgb = self.color_space_argumentation(rgb)
+        rgb = self.demean_rgb_image(rgb)        
+        
+        ##################################
+        debug = False
+        if debug:
+            cv.rectangle(im_rgb, (int(x), int(y)), (int(x+w), int(y+h)), (0, 0, 255), 3)
+            # x,y,w,h = rect
+            # cv.rectangle(im_rgb, (int(x), int(y)), (int(x+w), int(y+h)), (0, 255, 0), 3)
+            # mask1 = mask_datum[0].copy()
+            # mask1 = mask1.swapaxes(0, 1)
+        
+            # z = np.hstack((rgb1, dep1, rgb, dep))
+            cv.namedWindow('img', cv.WINDOW_NORMAL)
+            cv.imshow('img', rgb)
+            cv.waitKey(0)
+        ##################################
+
+        W = self.__in_size[0]
+        H = self.__in_size[1]
+        K = 1
+        label_datum = np.zeros((K, H, W), np.uint8)
+        label_datum[0] = mask.copy()
+        rgb = rgb.transpose((2, 0, 1))
+        
+        return (rgb, label_datum)
+
+    def color_space_argumentation(self, image):
+        seq = iaa.Sequential([
+            iaa.OneOf([
+                iaa.GaussianBlur((0, 3.0)),
+                iaa.AverageBlur(k=(2, 7)),
+                iaa.MedianBlur(k=(3, 7)),
+            ]),
+            iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5)),
+            iaa.Add((-2, 21), per_channel=0.5),
+            iaa.Multiply((0.75, 1.25), per_channel=0.5),
+            iaa.ContrastNormalization((0.5, 1.50), per_channel=0.5),
+            iaa.Grayscale(alpha=(0.0, 0.50)),
+        ],
+                             random_order=False)
+        return seq.augment_image(image)
+
+        
+    def get_region_bbox(self, im_rgb, rect, s):
+        x, y, w, h = rect
+        cx, cy = (x + w/2.0, y + h/2.0)
+        
+        sindx = int(random.randint(0, len(self.__scales) - 1))
+        s = self.__scales[sindx]
+        
+        nw = int(s * w)
+        nh = int(s * h)
+        nx = int(cx - nw/2.0)
+        ny = int(cy - nh/2.0)
+        
+        nx = 0 if nx < 0 else nx
+        ny = 0 if ny < 0 else ny
+        nw = nw-((nx+nw)-im_rgb.shape[1]) if (nx+nw) > im_rgb.shape[1] else nw
+        nh = nh-((ny+nh)-im_rgb.shape[0]) if (ny+nh) > im_rgb.shape[0] else nh
+        
+        return np.array([nx, ny, nw, nh])
+        
+    def crop_and_resize_inputs(self, im_rgb, im_mask, rect):
+        x, y, w, h = rect
+        rgb = im_rgb[y:y+h, x:x+w].copy()
+        msk = im_mask[y:y+h, x:x+w].copy()
+        
+        #! resize of network input
+        rgb = cv.resize(rgb, (self.__in_size))
+        msk = cv.resize(msk, (self.__in_size), interpolation = cv.INTER_NEAREST)
+        
+        return rgb, msk
+        
+    def create_mask_labels(self, im_mask):
+        if len(im_mask.shape) is None:
+            print 'ERROR: Empty input mask'
+            return
+
+        im_gray = im_mask.copy()
+        im_gray[im_gray > 0] = 255
+
+        ##! fill the gap
+        if CV_MAJOR < str(3):
+            contour, hier = cv.findContours(im_gray.copy(), cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+        else:
+            im, contour, hier = cv.findContours(im_gray.copy(), cv.RETR_CCOMP, \
+                                                cv.CHAIN_APPROX_SIMPLE)
+
+        max_area = 0
+        index = -1
+        for i, cnt in enumerate(contour):
+            cv.drawContours(im_gray, [cnt], 0, 255, -1)
+
+            a = cv.contourArea(cnt)
+            if max_area < a:
+                max_area = a
+                index = i
+
+        mask = None
+        if index > -1:
+            mask = np.asarray(im_gray, np.float32)
+            mask = mask / mask.max()
+
+        rect = cv.boundingRect(contour[index]) if index > -1 else None
+
+        return (mask, rect)
+
+    def bounding_rect(self, im_mask):
+        x1 = im_mask.shape[1] + 1
+        y1 = im_mask.shape[0] + 1
+        x2 = 0
+        y2 = 0
+        for j in xrange(0, im_mask.shape[0], 1):
+            for i in xrange(0, im_mask.shape[0], 1):
+                if im_mask[j, i] > 0:
+                    x1 = i if i < x1 else x1
+                    y1 = j if j < y1 else y1
+                    x2 = i if i > x2 else x2
+                    y2 = j if j > y2 else y2
+        return np.array([x1, y1, x2 - x1, y2 - y1])
+                    
+    def demean_rgb_image(self, im_rgb):
+        im_rgb = im_rgb.astype(np.float32)
+        im_rgb[:, :, 0] -= np.float32(104.0069879317889)
+        im_rgb[:, :, 1] -= np.float32(116.66876761696767)
+        im_rgb[:, :, 2] -= np.float32(122.6789143406786)
+        im_rgb = (im_rgb - im_rgb.min())/(im_rgb.max() - im_rgb.min())
+        return im_rgb
+
+
+# path = '/home/krishneel/Documents/datasets/handheld_objects2/cheezit/'
+# image = cv.imread(path + 'image/00000020.jpg')
+# mask = cv.imread(path + 'mask/00000020.png', 0)
+# ae = ArgumentationEngineFCN(448, 448)
+# a, b = ae.process2(image, mask)
+# print len(b.shape), b.shape
