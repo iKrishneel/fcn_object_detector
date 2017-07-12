@@ -175,9 +175,10 @@ class DataArgumentationLayerFCN(caffe.Layer):
             if not os.path.isfile(self.train_fn):
                 raise ValueError('Provide the dataset textfile')
             else:
-                self.img_paths, self.mask_labels = self.read_data_from_textfile()
+                self.img_paths, self.mask_imgs, self.labels = self.read_data_from_textfile()
 
-                if self.img_paths.shape != self.mask_labels.shape:
+                if self.img_paths.shape != self.mask_imgs.shape or \
+                   self.img_paths.shape != self.labels.shape:
                     raise Exception('label and image size are not equal')
                 
                 self.idx = 0 #! start index
@@ -201,23 +202,22 @@ class DataArgumentationLayerFCN(caffe.Layer):
         
         for index in xrange(0, self.batch_size, 1):
             im_rgb = cv.imread(self.img_paths[self.idx])
-            im_mask = cv.imread(self.mask_labels[self.idx])
-
-            rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask)
+            im_mask = cv.imread(self.mask_imgs[self.idx])
+            label = self.labels[self.idx]
+            
+            rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
 
             if len(label_datum.shape) < 3:
                 while len(template_datum.shape) < 3:
                     self.idx = random.randint(0, len(self.img_paths)-1)
                     im_rgb = cv.imread(self.img_paths[self.idx])
-                    im_mask = cv.imread(self.mask_labels[self.idx])
+                    im_mask = cv.imread(self.mask_imgs[self.idx])
 
                     rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask)
 
             top[0].data[index] = rgb_datum.copy()
             top[1].data[index] = label_datum.copy()
-
             self.idx = random.randint(0, len(self.img_paths)-1)
-
             
     def backward(self, top, propagate_down, bottom):
         pass
@@ -227,13 +227,15 @@ class DataArgumentationLayerFCN(caffe.Layer):
                  for line in open(self.train_fn)
         ]
         img_paths = []
-        mask_labels = []
+        mask_imgs = []
+        labels = []
         for index in xrange(0, len(lines), 2):
             img_paths.append(lines[index].split()[0])
-            mask_labels.append(lines[index+1].split()[0])
-            
-        return np.array(img_paths), np.array(mask_labels)
+            mask_imgs.append(lines[index+1].split()[0])
+            labels.append(lines[index+1].split()[1])
 
+        print "\n\nunique labels", np.unique(labels)
+        return np.array(img_paths), np.array(mask_imgs), np.array(labels)
         
 """
 Test debugging layer

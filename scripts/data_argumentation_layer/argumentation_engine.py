@@ -393,7 +393,7 @@ class ArgumentationEngineFCN(object):
         self.__scales = np.array([3, 3.5, 4.0]) #! predefined scaling
         self.__variable_scaling = var_scaling
 
-    def process2(self, in_rgb, in_mask):
+    def process2(self, in_rgb, in_mask, label):
         flip_flag = random.randint(-1, 1)
         im_rgb = cv.flip(in_rgb, flip_flag)
         im_mask = cv.flip(in_mask, flip_flag)
@@ -401,10 +401,10 @@ class ArgumentationEngineFCN(object):
         if len(im_mask.shape) == 3:
             im_mask = cv.cvtColor(im_mask, cv.COLOR_BGR2GRAY)
     
-        return self.generate_argumented_data(im_rgb, im_mask)
+        return self.generate_argumented_data(im_rgb, im_mask, label)
 
 
-    def generate_argumented_data(self, im_rgb, in_mask):
+    def generate_argumented_data(self, im_rgb, in_mask, label):
         im_mask, rect = self.create_mask_labels(in_mask)
         if rect is None or im_mask is None:
             return im_rgb, in_mask
@@ -443,11 +443,12 @@ class ArgumentationEngineFCN(object):
         box[1] = y
             
         rgb, mask = self.crop_and_resize_inputs(im_rgb, in_mask, box)
-
+        mask[mask > 0] = label
+        
         #####
         ## ToDo: color space argumentation
         ####
-        rgb = self.color_space_argumentation(rgb)
+        # rgb = self.color_space_argumentation(rgb)
         rgb = self.demean_rgb_image(rgb)        
         
         ##################################
@@ -578,9 +579,11 @@ class ArgumentationEngineFCN(object):
         return im_rgb
 
 
-# path = '/home/krishneel/Documents/datasets/handheld_objects2/cheezit/'
+# path = '/home/krishneel/Documents/datasets/handheld_objects2.old/reck/'
 # image = cv.imread(path + 'image/00000020.jpg')
-# mask = cv.imread(path + 'mask/00000020.png', 0)
+# mask = cv.imread(path + 'mask/00000020.jpg', 0)
 # ae = ArgumentationEngineFCN(448, 448)
-# a, b = ae.process2(image, mask)
+# a, b = ae.process2(image, mask, 4)
+# print np.unique(b)
 # print len(b.shape), b.shape
+
