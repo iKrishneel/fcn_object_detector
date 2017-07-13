@@ -37,4 +37,6 @@ mkmf.log
 *.solverstate
 /snapshot
 *.log
-/labels
+*/labels
+/labels/labels_*
+*/labels_*
