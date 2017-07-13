@@ -213,7 +213,7 @@ class DataArgumentationLayerFCN(caffe.Layer):
                     im_rgb = cv.imread(self.img_paths[self.idx])
                     im_mask = cv.imread(self.mask_imgs[self.idx])
 
-                    rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask)
+                    rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
 
             top[0].data[index] = rgb_datum.copy()
             top[1].data[index] = label_datum.copy()
