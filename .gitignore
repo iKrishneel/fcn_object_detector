@@ -35,7 +35,7 @@ mkmf.log
 *.pyc
 *.caffemodel
 *.solverstate
-/snapshot
+/snapshots
 *.log
 */labels
 /labels/labels_*
