@@ -11,6 +11,11 @@ if [[ ! -e $dir ]]; then
     mkdir $dir
 fi
 
+dir=snapshots/labels
+if [[ ! -e $dir ]]; then
+    mkdir $dir
+fi
+
 export CAFFE_ROOT=/home/krishneel/nvcaffe
 export PYTHONPATH=$CAFFE_ROOT/python:$PYTHONPATH
 pkg_directory=$PWD/..
