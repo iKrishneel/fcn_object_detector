@@ -3,6 +3,7 @@
 import os
 import caffe
 import random
+import time
 import numpy as np
 import cv2 as cv
 import argumentation_engine as ae
@@ -204,7 +205,6 @@ class DataArgumentationLayerFCN(caffe.Layer):
             im_rgb = cv.imread(self.img_paths[self.idx])
             im_mask = cv.imread(self.mask_imgs[self.idx])
             label = self.labels[self.idx]
-            
             rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
 
             if len(label_datum.shape) < 3:
@@ -234,8 +234,23 @@ class DataArgumentationLayerFCN(caffe.Layer):
             mask_imgs.append(lines[index+1].split()[0])
             labels.append(lines[index+1].split()[1])
 
-        print "\n\nunique labels", np.unique(labels)
-        return np.array(img_paths), np.array(mask_imgs), np.array(labels)
+        ##! create unique labels
+        labels = np.array(labels)
+        label_unique, label_indices = np.unique(labels, return_index=False, \
+                                                return_inverse=True, return_counts=False)
+        #! shift to one indices
+        label_indices += 1
+
+        #! create new label manifest
+        manifest_fn = 'snapshots/labels/labels_' + time.strftime("%Y%m%d%H%M%S") + '.txt'
+        text_file = open(str(manifest_fn), 'w')
+        for index, label in enumerate(label_unique):
+            n_label = index + 1
+            a = str(n_label) + ' ' +str(label)
+            text_file.write('%s\n'% a)
+        text_file.close()
+        
+        return np.array(img_paths), np.array(mask_imgs), label_indices
         
 """
 Test debugging layer
