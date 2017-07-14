@@ -592,20 +592,20 @@ class ArgumentationEngineFCN(object):
 
 
 class ArgumentationEngineMapping(ArgumentationEngineFCN):
-    def __init__(self, train_fn, im_width, im_height, num_proposals = 4):
+    def __init__(self, train_fn, im_width, im_height):
         self.__in_size = (im_width, im_height)
-        self.__num_proposals = num_proposals
         self.__iou_thresh = 0.05
         self.__max_counter = 100
         self.__dataset_list = [line.rstrip('\n') for line in open(str(train_fn))]
 
-    def process(self, im_bg):
+    def process(self, num_proposals, im_bg, im_mk = None, rect = None):
         if len(im_bg.shape) is None:
             return
-        image, mask = self.argument(im_bg)
+            
+        image, mask = self.argument(num_proposals, im_bg, im_mk, rect)
         image, mask = self.resize_inputs(image, mask)
-
-        use_color_arg = True
+    
+        use_color_arg = False
         if use_color_arg:
             image = self.color_space_argumentation(image)
         image = self.demean_rgb_image(image)
@@ -616,13 +616,21 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         label_datum = np.zeros((K, H, W), np.uint8)
         label_datum[0] = mask.copy()
         image_datum = image.transpose((2, 0, 1))
+
+        return image_datum, label_datum
         
-    def argument(self, im_bg):
+    def argument(self, num_proposals, im_bg, im_mk = None, mrect = None):
         im_y, im_x, _ = im_bg.shape
         flag_position = []
         img_output = im_bg.copy()
+
         mask_output = np.zeros((im_y, im_x, 1), np.uint8)
-        for index in xrange(0, self.__num_proposals, 1):
+        if not im_mk is None:
+            mask_output = im_mk.copy()
+        if not mrect is None:
+            flag_position.append(mrect)
+            
+        for index in xrange(0, num_proposals, 1):
             idx = random.randint(0, len(self.__dataset_list)-1)
             im_path = self.__dataset_list[idx].split()[0]
             mk_path = self.__dataset_list[idx].split()[1]
@@ -698,23 +706,41 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         return rgb, msk
 
 
-c = 0
-while True:
-    path = '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'
-    ac = ArgumentationEngineMapping(path, 448, 448, 4)
-    im_bg = np.zeros((480, 640, 3), np.uint8)
-    im_bg, mask = ac.process(im_bg)
-    mask *= 255
+# c = 0
+# while True:
+#     path = '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'
 
-    mask = cv.applyColorMap(mask, cv.COLORMAP_JET)
-    # cv.rectangle(image, (x, y), (x+w, h+y), (0, 255,0), 5)
-    cv.namedWindow('image', cv.WINDOW_NORMAL)
-    cv.imshow('image', im_bg)
-    cv.imshow('mask', mask)
-    cv.waitKey(0)
+#     lines = [line.rstrip('\n') for line in open(str(path))]
+#     idx = random.randint(0, len(lines)-1)
+#     im_path = lines[idx].split()[0]
+#     mk_path = lines[idx].split()[1]
+#     label = int(lines[idx].split()[2])
+#     x = int(float(lines[idx].split()[3]))
+#     y = int(float(lines[idx].split()[4]))
+#     w = int(float(lines[idx].split()[5]))
+#     h = int(float(lines[idx].split()[6]))
+#     rect  = np.array([x, y, w, h], dtype=np.int)
 
-    c+=1
-    if c > 1:
-        break
+#     ac = ArgumentationEngineMapping(path, 640, 480)
+#     im_bg = np.zeros((480, 640, 3), np.uint8)
+
+#     im_bg = cv.imread(im_path)
+#     im_mk = cv.imread(mk_path, 0)
+
+#     num_proposals = random.randint(0, 5)
+#     im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
+#     print im_bg.shape, mask.shape
+#     # mask *= 255
+
+#     # mask = cv.applyColorMap(mask, cv.COLORMAP_JET)
+#     # # cv.rectangle(image, (x, y), (x+w, h+y), (0, 255,0), 5)
+#     # cv.namedWindow('image', cv.WINDOW_NORMAL)
+#     # cv.imshow('image', im_bg)
+#     # cv.imshow('mask', mask)
+#     # cv.waitKey(3)
+
+#     c+=1
+#     if c > 2:
+#         break
     
     

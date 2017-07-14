@@ -176,7 +176,8 @@ class DataArgumentationLayerFCN(caffe.Layer):
             if not os.path.isfile(self.train_fn):
                 raise ValueError('Provide the dataset textfile')
             else:
-                self.img_paths, self.mask_imgs, self.labels = self.read_data_from_textfile()
+                # self.img_paths, self.mask_imgs, self.labels = self.read_data_from_textfile()
+                self.img_paths, self.mask_imgs, self.labels, self.rects = self.read_data_from_textfile2()
 
                 if self.img_paths.shape != self.mask_imgs.shape or \
                    self.img_paths.shape != self.labels.shape:
@@ -184,7 +185,8 @@ class DataArgumentationLayerFCN(caffe.Layer):
                 
                 self.idx = 0 #! start index
 
-            self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
+            ##!self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
+            self.__ae = ae.ArgumentationEngineMapping(self.train_fn, self.image_size_x, self.image_size_y)
 
             if self.randomize:
                 random.seed()
@@ -201,12 +203,33 @@ class DataArgumentationLayerFCN(caffe.Layer):
 
     def forward(self, bottom, top):
         
+        # for index in xrange(0, self.batch_size, 1):
+        #     im_rgb = cv.imread(self.img_paths[self.idx])
+        #     im_mask = cv.imread(self.mask_imgs[self.idx])
+        #     label = self.labels[self.idx]
+        #     rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
+
+        #     if len(label_datum.shape) < 3:
+        #         while len(template_datum.shape) < 3:
+        #             self.idx = random.randint(0, len(self.img_paths)-1)
+        #             im_rgb = cv.imread(self.img_paths[self.idx])
+        #             im_mask = cv.imread(self.mask_imgs[self.idx])
+
+        #             rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
+
+        #     top[0].data[index] = rgb_datum.copy()
+        #     top[1].data[index] = label_datum.copy()
+        #     self.idx = random.randint(0, len(self.img_paths)-1)
+
         for index in xrange(0, self.batch_size, 1):
             im_rgb = cv.imread(self.img_paths[self.idx])
             im_mask = cv.imread(self.mask_imgs[self.idx])
             label = self.labels[self.idx]
-            rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
+            rect = self.rects[self.idx]
 
+            num_proposals = random.randint(0, 5)
+            rgb_datum, label_datum = self.__ae.process2(num_proposals, im_rgb, im_mask, rect)
+            
             if len(label_datum.shape) < 3:
                 while len(template_datum.shape) < 3:
                     self.idx = random.randint(0, len(self.img_paths)-1)
@@ -251,6 +274,43 @@ class DataArgumentationLayerFCN(caffe.Layer):
         text_file.close()
         
         return np.array(img_paths), np.array(mask_imgs), label_indices
+
+    def read_data_from_textfile2(self):
+        lines = [line.rstrip('\n')
+                 for line in open(self.train_fn)
+        ]
+        img_paths = []
+        mask_imgs = []
+        labels = []
+        rects = []
+        for index in xrange(0, len(lines), 2):
+            img_paths.append(lines[index].split()[0])
+            mask_imgs.append(lines[index].split()[1])
+            labels.append(int(lines[index].split()[2]))
+             x = int(float(lines[idx].split()[3]))
+             y = int(float(lines[idx].split()[4]))
+             w = int(float(lines[idx].split()[5]))
+             h = int(float(lines[idx].split()[6]))
+             rects.append(np.array([x, y, w, h], dtype=np.int))
+             
+        ##! create unique labels
+        labels = np.array(labels)
+        label_unique, label_indices = np.unique(labels, return_index=False, \
+                                                return_inverse=True, return_counts=False)
+        #! shift to one indices
+        label_indices += 1
+
+        #! create new label manifest
+        manifest_fn = 'snapshots/labels/labels_' + time.strftime("%Y%m%d%H%M%S") + '.txt'
+        text_file = open(str(manifest_fn), 'w')
+        for index, label in enumerate(label_unique):
+            n_label = index + 1
+            a = str(n_label) + ' ' +str(label)
+            text_file.write('%s\n'% a)
+        text_file.close()
+        
+        return np.array(img_paths), np.array(mask_imgs), label_indices, np.array(rects)
+
         
 """
 Test debugging layer
