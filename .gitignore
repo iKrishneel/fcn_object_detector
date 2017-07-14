@@ -41,4 +41,5 @@ snapshots/*
 */labels
 /labels/labels_*
 */labels_*
-/snapshots/labels
+snapshots/labels
+train/snapshots/*
