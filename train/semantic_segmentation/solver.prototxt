@@ -7,7 +7,7 @@ lr_policy: "fixed"
 base_lr: 1e-08
 momentum: 0.99
 iter_size: 1
-max_iter: 100000
+max_iter: 10
 weight_decay: 1e-7
 snapshot: 1000
 solver_mode: GPU

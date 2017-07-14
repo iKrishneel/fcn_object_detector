@@ -617,7 +617,15 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         label_datum[0] = mask.copy()
         image_datum = image.transpose((2, 0, 1))
 
+        # im_plot = mask.astype(np.float)
+        # im_plot /= im_plot.max()
+        # im_plot *= 255
+        # im_plot = im_plot.astype(np.uint8)
+        # im_plot = cv.applyColorMap(im_plot, cv.COLORMAP_JET)
+        # cv.imshow('mask', im_plot)
+
         return image_datum, label_datum
+
         
     def argument(self, num_proposals, im_bg, im_mk = None, mrect = None):
         im_y, im_x, _ = im_bg.shape

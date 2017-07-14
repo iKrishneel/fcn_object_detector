@@ -6,7 +6,7 @@ layer {
   python_param {
     module: 'data_argumentation_layer'
     layer: 'DataArgumentationLayerFCN'
-    param_str: "{\'batch_size\': 15, \'im_width\': 448, \'im_height\': 448, \'filename\': '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'}"
+    param_str: "{\'batch_size\': 32, \'im_width\': 448, \'im_height\': 448, \'filename\': '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'}"
     }
 }
 layer {
