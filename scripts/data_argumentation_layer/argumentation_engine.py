@@ -579,7 +579,8 @@ class ArgumentationEngineFCN(object):
         return im_rgb
 
 
-# path = '/home/krishneel/Documents/datasets/handheld_objects2.old/reck/'
+
+# path = '/home/krishneel/Documents/datasets/handheld_objects2/reck/'
 # image = cv.imread(path + 'image/00000020.jpg')
 # mask = cv.imread(path + 'mask/00000020.jpg', 0)
 # ae = ArgumentationEngineFCN(448, 448)
@@ -587,3 +588,106 @@ class ArgumentationEngineFCN(object):
 # print np.unique(b)
 # print len(b.shape), b.shape
 
+##! mapping labels to background
+
+
+class ArgumentationEngineMapping(object):
+    def __init__(self, train_fn, num_proposals = 4):
+        self.__num_proposals = num_proposals
+        self.__iou_thresh = 0.05
+        self.__max_counter = 100
+        self.__dataset_list = [line.rstrip('\n') for line in open(str(train_fn))]
+        
+    def argument(self, im_bg):
+        im_y, im_x, _ = im_bg.shape
+        flag_position = []
+        img_output = im_bg.copy()
+        mask_output = np.zeros((im_y, im_x, 1), np.uint8)
+        for index in xrange(0, self.__num_proposals, 1):
+            idx = random.randint(0, len(self.__dataset_list)-1)
+            im_path = self.__dataset_list[idx].split()[0]
+            mk_path = self.__dataset_list[idx].split()[1]
+            label = int(self.__dataset_list[idx].split()[2])
+            x = int(float(self.__dataset_list[idx].split()[3]))
+            y = int(float(self.__dataset_list[idx].split()[4]))
+            w = int(float(self.__dataset_list[idx].split()[5]))
+            h = int(float(self.__dataset_list[idx].split()[6]))
+            rect  = np.array([x, y, w, h], dtype=np.int)
+    
+            image = cv.imread(im_path)
+            mask = cv.imread(mk_path)
+            mask[mask > 0] = 255
+    
+            im_roi = image[y:y+h, x:x+w].copy()
+            im_msk = mask[y:y+h, x:x+w].copy()
+
+            resize_flag = random.randint(0, 1)
+            if resize_flag:
+                scale = random.uniform(0.7, 2)
+                w = int(w * scale)
+                h = int(h * scale)
+                im_roi = cv.resize(im_roi, (int(w), int(h)))
+                im_msk = cv.resize(im_msk, (int(w), int(h)))
+                rect  = np.array([x, y, w, h], dtype=np.int)
+
+            
+            cx, cy = random.randint(0, im_x - 1), random.randint(0, im_y-1)
+            cx = cx - ((cx + w) - im_x) if cx + w > im_x - 1 else cx
+            cy = cy - ((cy + h) - im_y) if cy + h > im_y - 1 else cy
+            nrect = np.array([cx, cy, w, h])
+
+            counter = 0
+            position_found = True
+            if len(flag_position) > 0:
+                jc = JaccardCoeff()
+                for bbox in flag_position:
+                    if jc.iou(bbox, nrect) > self.__iou_thresh and position_found:
+                        is_ok = True
+                        while True:
+                            cx, cy = random.randint(0, im_x - 1), random.randint(0, im_y-1)
+                            cx = cx - ((cx + w) - im_x) if cx + w > im_x - 1 else cx
+                            cy = cy - ((cy + h) - im_y) if cy + h > im_y - 1 else cy
+                            nrect = np.array([cx, cy, w, h])
+                            for bbox2 in flag_position:
+                                if jc.iou(bbox2, nrect) > self.__iou_thresh:
+                                    is_ok = False
+                                    break
+                            if is_ok:
+                                break
+
+                            counter += 1
+                            if counter > self.__max_counter:
+                                position_found = False
+                                break
+            if position_found:
+                for j in xrange(0, h, 1):
+                    for i in xrange(0, w, 1):
+                        nx, ny = i + cx, j + cy
+                        if im_msk[j, i, 0] > 0 and nx < im_x and ny < im_y:
+                            img_output[ny, nx] = im_roi[j, i]
+                            mask_output[ny, nx] = label
+        
+                flag_position.append(nrect)
+        return (img_output, mask_output)
+                
+
+c = 0
+while True:
+    path = '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'
+    ac = ArgumentationEngineMapping(path, 4)
+    im_bg = np.zeros((480, 640, 3), np.uint8)
+    im_bg, mask = ac.argument(im_bg)
+    mask *= 255
+
+
+    mask = cv.applyColorMap(mask, cv.COLORMAP_JET)
+    # cv.rectangle(image, (x, y), (x+w, h+y), (0, 255,0), 5)
+    cv.namedWindow('image', cv.WINDOW_NORMAL)
+    cv.imshow('image', im_bg)
+    cv.imshow('mask', mask)
+    cv.waitKey(0)
+    
+    if c > 10:
+        break
+    
+    
