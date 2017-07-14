@@ -308,7 +308,7 @@ class ArgumentationEngine(object):
             iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5)),
             iaa.Add((-2, 21), per_channel=0.5),
             iaa.Multiply((0.75, 1.25), per_channel=0.5),
-            iaa.ContrastNormalization((0.5, 1.50), per_channel=0.5),
+            # iaa.ContrastNormalization((0.5, 1.50), per_channel=0.5),
             iaa.Grayscale(alpha=(0.0, 0.50)),
         ],
                              random_order=False)
@@ -591,12 +591,31 @@ class ArgumentationEngineFCN(object):
 ##! mapping labels to background
 
 
-class ArgumentationEngineMapping(object):
-    def __init__(self, train_fn, num_proposals = 4):
+class ArgumentationEngineMapping(ArgumentationEngineFCN):
+    def __init__(self, train_fn, im_width, im_height, num_proposals = 4):
+        self.__in_size = (im_width, im_height)
         self.__num_proposals = num_proposals
         self.__iou_thresh = 0.05
         self.__max_counter = 100
         self.__dataset_list = [line.rstrip('\n') for line in open(str(train_fn))]
+
+    def process(self, im_bg):
+        if len(im_bg.shape) is None:
+            return
+        image, mask = self.argument(im_bg)
+        image, mask = self.resize_inputs(image, mask)
+
+        use_color_arg = True
+        if use_color_arg:
+            image = self.color_space_argumentation(image)
+        image = self.demean_rgb_image(image)
+
+        W = self.__in_size[0]
+        H = self.__in_size[1]
+        K = 1
+        label_datum = np.zeros((K, H, W), np.uint8)
+        label_datum[0] = mask.copy()
+        image_datum = image.transpose((2, 0, 1))
         
     def argument(self, im_bg):
         im_y, im_x, _ = im_bg.shape
@@ -669,16 +688,23 @@ class ArgumentationEngineMapping(object):
         
                 flag_position.append(nrect)
         return (img_output, mask_output)
-                
+
+
+    def resize_inputs(self, rgb, mask):
+        #! resize of network input
+        rgb = cv.resize(rgb, (self.__in_size))
+        msk = cv.resize(mask, (self.__in_size), interpolation = cv.INTER_NEAREST)
+        
+        return rgb, msk
+
 
 c = 0
 while True:
     path = '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'
-    ac = ArgumentationEngineMapping(path, 4)
+    ac = ArgumentationEngineMapping(path, 448, 448, 4)
     im_bg = np.zeros((480, 640, 3), np.uint8)
-    im_bg, mask = ac.argument(im_bg)
+    im_bg, mask = ac.process(im_bg)
     mask *= 255
-
 
     mask = cv.applyColorMap(mask, cv.COLORMAP_JET)
     # cv.rectangle(image, (x, y), (x+w, h+y), (0, 255,0), 5)
@@ -686,8 +712,9 @@ while True:
     cv.imshow('image', im_bg)
     cv.imshow('mask', mask)
     cv.waitKey(0)
-    
-    if c > 10:
+
+    c+=1
+    if c > 1:
         break
     
     
