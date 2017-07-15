@@ -189,7 +189,6 @@ class DataArgumentationLayerFCN(caffe.Layer):
             # self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
             self.__ae = ae.ArgumentationEngineMapping(self.train_fn, \
                                                       self.image_size_x, self.image_size_y)
-
             if self.randomize:
                 random.seed()
                 self.idx = random.randint(0, (len(self.img_paths))-1)
@@ -223,9 +222,10 @@ class DataArgumentationLayerFCN(caffe.Layer):
             top[1].data[index] = label_datum.copy()
             self.idx = random.randint(0, len(self.img_paths)-1)
         """
+        
         for index in xrange(0, self.batch_size, 1):
             im_rgb = cv.imread(self.img_paths[self.idx])
-            im_mask = cv.imread(self.mask_imgs[self.idx], cv.IMREAD_GRAYSCALE)
+            im_mask = cv.imread(self.mask_imgs[self.idx])
             label = self.labels[self.idx]
             rect = self.rects[self.idx]
            
@@ -253,11 +253,10 @@ class DataArgumentationLayerFCN(caffe.Layer):
             #         label = self.labels[self.idx]
             #         rect = self.rects[self.idx]
             #         rgb_datum, label_datum = self.__ae.process(num_proposals, im_rgb) #, im_mask, rect)
-            
+
             top[0].data[index] = rgb_datum.copy()
             top[1].data[index] = label_datum.copy()
             self.idx = random.randint(0, len(self.img_paths)-1)
-
 
     def backward(self, top, propagate_down, bottom):
         pass
