@@ -623,7 +623,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         label_datum[0] = mask.copy()
         image_datum = image.transpose((2, 0, 1))
 
-        debug = False
+        debug = True
         if debug:
             im_plot = mask.astype(np.float)
             im_plot /= im_plot.max()
@@ -648,7 +648,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
             flag_position.append(mrect)
             
         for index in xrange(0, num_proposals, 1):
-            idx = random.randint(0, len(self.__dataset_list)-1)
+            idx = random.randint(0, len(self.__img_paths)-1)
             # im_path = self.__dataset_list[idx].split()[0]
             # mk_path = self.__dataset_list[idx].split()[1]
             # label = int(self.__dataset_list[idx].split()[2])
@@ -662,7 +662,8 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
             mk_path = self.__mask_paths[idx]
             label = self.__labels[idx]
             rect = self.__rects[idx]
-            
+            x,y,w,h = rect
+
             image = cv.imread(im_path)
             mask = cv.imread(mk_path)
             mask[mask > 0] = 255
@@ -672,7 +673,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
 
             resize_flag = random.randint(0, 1)
             if resize_flag:
-                scale = random.randint(1, 4)
+                scale = random.uniform(1.0, 2.2)
                 w = int(w * scale)
                 h = int(h * scale)
                 im_roi = cv.resize(im_roi, (int(w), int(h)))
