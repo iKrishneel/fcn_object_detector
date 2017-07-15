@@ -592,11 +592,17 @@ class ArgumentationEngineFCN(object):
 
 
 class ArgumentationEngineMapping(ArgumentationEngineFCN):
-    def __init__(self, train_fn, im_width, im_height):
+    def __init__(self, img_paths, mask_paths, labels, rects, im_width, im_height):
         self.__in_size = (im_width, im_height)
         self.__iou_thresh = 0.05
         self.__max_counter = 100
-        self.__dataset_list = [line.rstrip('\n') for line in open(str(train_fn))]
+
+        ##! dataset info
+        self.__img_paths = img_paths
+        self.__mask_paths = mask_paths
+        self.__labels = labels
+        self.__rects = rects
+        # self.__dataset_list = [line.rstrip('\n') for line in open(str(train_fn))]
 
     def process(self, num_proposals, im_bg, im_mk = None, rect = None):
         if len(im_bg.shape) is None:
@@ -643,15 +649,20 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
             
         for index in xrange(0, num_proposals, 1):
             idx = random.randint(0, len(self.__dataset_list)-1)
-            im_path = self.__dataset_list[idx].split()[0]
-            mk_path = self.__dataset_list[idx].split()[1]
-            label = int(self.__dataset_list[idx].split()[2])
-            x = int(float(self.__dataset_list[idx].split()[3]))
-            y = int(float(self.__dataset_list[idx].split()[4]))
-            w = int(float(self.__dataset_list[idx].split()[5]))
-            h = int(float(self.__dataset_list[idx].split()[6]))
-            rect  = np.array([x, y, w, h], dtype=np.int)
-    
+            # im_path = self.__dataset_list[idx].split()[0]
+            # mk_path = self.__dataset_list[idx].split()[1]
+            # label = int(self.__dataset_list[idx].split()[2])
+            # x = int(float(self.__dataset_list[idx].split()[3]))
+            # y = int(float(self.__dataset_list[idx].split()[4]))
+            # w = int(float(self.__dataset_list[idx].split()[5]))
+            # h = int(float(self.__dataset_list[idx].split()[6]))
+            # rect  = np.array([x, y, w, h], dtype=np.int)
+            
+            im_path = self.__img_paths[idx]
+            mk_path = self.__mask_paths[idx]
+            label = self.__labels[idx]
+            rect = self.__rects[idx]
+            
             image = cv.imread(im_path)
             mask = cv.imread(mk_path)
             mask[mask > 0] = 255
@@ -717,6 +728,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         return rgb, msk
 
 
+"""        
 c = 0
 while True:
     path = '/home/krishneel/Documents/datasets/handheld_objects/cups/train.txt'
@@ -756,5 +768,4 @@ while True:
     c+=1
     if c > 0:
         break
-    
-    
+"""        

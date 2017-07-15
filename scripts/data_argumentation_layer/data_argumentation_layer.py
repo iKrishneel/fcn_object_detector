@@ -187,7 +187,8 @@ class DataArgumentationLayerFCN(caffe.Layer):
                 self.idx = 0 #! start index
 
             # self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
-            self.__ae = ae.ArgumentationEngineMapping(self.train_fn, \
+            self.__ae = ae.ArgumentationEngineMapping(self.img_paths, self.mask_imgs, \
+                                                      self.labels, self.rects, \
                                                       self.image_size_x, self.image_size_y)
             if self.randomize:
                 random.seed()
