@@ -186,9 +186,9 @@ class DataArgumentationLayerFCN(caffe.Layer):
                 
                 self.idx = 0 #! start index
 
-            ##!self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
-            self.__ae = ae.ArgumentationEngineMapping(self.train_fn, \
-                                                      self.image_size_x, self.image_size_y)
+            self.__ae = ae.ArgumentationEngineFCN(self.image_size_x, self.image_size_y)
+            # self.__ae = ae.ArgumentationEngineMapping(self.train_fn, \
+            #                                           self.image_size_x, self.image_size_y)
 
             if self.randomize:
                 random.seed()
@@ -205,45 +205,45 @@ class DataArgumentationLayerFCN(caffe.Layer):
 
     def forward(self, bottom, top):
         
-        # for index in xrange(0, self.batch_size, 1):
-        #     im_rgb = cv.imread(self.img_paths[self.idx])
-        #     im_mask = cv.imread(self.mask_imgs[self.idx])
-        #     label = self.labels[self.idx]
-        #     rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
-
-        #     if len(label_datum.shape) < 3:
-        #         while len(template_datum.shape) < 3:
-        #             self.idx = random.randint(0, len(self.img_paths)-1)
-        #             im_rgb = cv.imread(self.img_paths[self.idx])
-        #             im_mask = cv.imread(self.mask_imgs[self.idx])
-
-        #             rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
-
-        #     top[0].data[index] = rgb_datum.copy()
-        #     top[1].data[index] = label_datum.copy()
-        #     self.idx = random.randint(0, len(self.img_paths)-1)
-
         for index in xrange(0, self.batch_size, 1):
             im_rgb = cv.imread(self.img_paths[self.idx])
-            im_mask = cv.imread(self.mask_imgs[self.idx], cv.IMREAD_GRAYSCALE)
+            im_mask = cv.imread(self.mask_imgs[self.idx])
             label = self.labels[self.idx]
-            rect = self.rects[self.idx]
+            rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
 
-            num_proposals = random.randint(0, 5)
-            rgb_datum, label_datum = self.__ae.process(num_proposals, im_rgb, im_mask, rect)
-            
             if len(label_datum.shape) < 3:
-                while len(label_datum.shape) < 3:
+                while len(template_datum.shape) < 3:
                     self.idx = random.randint(0, len(self.img_paths)-1)
                     im_rgb = cv.imread(self.img_paths[self.idx])
                     im_mask = cv.imread(self.mask_imgs[self.idx])
-                    label = self.labels[self.idx]
-                    rect = self.rects[self.idx]
-                    rgb_datum, label_datum = self.__ae.process(num_proposals, im_rgb, im_mask, rect)
-            
+
+                    rgb_datum, label_datum = self.__ae.process2(im_rgb, im_mask, label)
+
             top[0].data[index] = rgb_datum.copy()
             top[1].data[index] = label_datum.copy()
             self.idx = random.randint(0, len(self.img_paths)-1)
+
+        # for index in xrange(0, self.batch_size, 1):
+        #     im_rgb = cv.imread(self.img_paths[self.idx])
+        #     im_mask = cv.imread(self.mask_imgs[self.idx], cv.IMREAD_GRAYSCALE)
+        #     label = self.labels[self.idx]
+        #     rect = self.rects[self.idx]
+
+        #     num_proposals = random.randint(0, 5)
+        #     rgb_datum, label_datum = self.__ae.process(num_proposals, im_rgb, im_mask, rect)
+            
+        #     if len(label_datum.shape) < 3:
+        #         while len(label_datum.shape) < 3:
+        #             self.idx = random.randint(0, len(self.img_paths)-1)
+        #             im_rgb = cv.imread(self.img_paths[self.idx])
+        #             im_mask = cv.imread(self.mask_imgs[self.idx])
+        #             label = self.labels[self.idx]
+        #             rect = self.rects[self.idx]
+        #             rgb_datum, label_datum = self.__ae.process(num_proposals, im_rgb, im_mask, rect)
+            
+        #     top[0].data[index] = rgb_datum.copy()
+        #     top[1].data[index] = label_datum.copy()
+        #     self.idx = random.randint(0, len(self.img_paths)-1)
             
     def backward(self, top, propagate_down, bottom):
         pass

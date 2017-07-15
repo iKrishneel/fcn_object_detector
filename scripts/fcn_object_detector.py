@@ -12,6 +12,7 @@ import sys
 import math
 import numpy as np
 import random
+import time
 import cv2 as cv
 import matplotlib.pylab as plt
 from cv_bridge import CvBridge
@@ -19,18 +20,15 @@ from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import PolygonStamped as Rect
 from geometry_msgs.msg import Polygon, Point32
 
-from region_cnn_detector import RCNNDetector
+(CV_MAJOR, CV_MINOR, _) = cv.__version__.split(".")
 
-class FCNObjectDetector():
-
+class FCNObjectDetector(object):
     def __init__(self):
         self.__net = None
         self.__transformer = None
         self.__im_width = None
         self.__im_height = None
         self.__bridge = CvBridge()
-
-        # self.__rcnn = RCNNDetector()
 
         self.__prob_thresh = rospy.get_param('~detection_threshold', 0.5)  #! threshold for masking the detection
         self.__min_bbox_thresh = rospy.get_param('~min_boxes', 3) #! minimum bounding box
@@ -116,8 +114,7 @@ class FCNObjectDetector():
         object_boxes = self.resize_detection(input_image.shape, object_boxes)
 
         ## give results to rcnn
-        # object_boxes, object_labels = self.__rcnn.run_detector(input_image, object_boxes)
-        # self.__rcnn.run_detector(input_image, object_boxes)
+
 
         if object_labels.shape[0] != object_boxes.shape[0]:
             rospy.logwarn("incorrect size label and rects")
@@ -158,8 +155,132 @@ class FCNObjectDetector():
         cv.waitKey(3)
 
 
+
+    def run_detector2(self, image_msg):
+        cv_img = None
+        try:
+            cv_img = self.__bridge.imgmsg_to_cv2(image_msg, "bgr8")
+        except Exception as e:
+            print (e)
+            return
+        
+        if cv_img is None:
+            return
+
+        caffe.set_device(self.__device_id)
+        caffe.set_mode_gpu()
+            
+        input_image = cv_img.copy()
+        padding = 10
+        cv_img = self.demean_rgb_image(cv_img)
+
+        im_rois, rects = self.detection_window_roi(cv_img, (int(self.__im_width), int(self.__im_height)))
+        
+        batch_size = len(im_rois)
+        self.__net.blobs['data'].reshape(batch_size, 3, self.__im_height, self.__im_width)
+        
+        in_datum = np.zeros((batch_size, 3, self.__im_height, self.__im_height))
+        for index, roi in enumerate(im_rois):
+            in_datum[index][...] = roi.copy()
+
+            # start_time = time.time()
+        self.__net.blobs['data'].data[...] = in_datum
+        output = self.__net.forward()
+        feature_maps = self.__net.blobs['score'].data
+
+        # print("--- %s seconds ---" % (time.time() - start_time))
+
+        
+        feature_maps[feature_maps < self.__prob_thresh] = 0
+
+        bboxs = []
+        for fmaps, rect in zip(feature_maps, rects):
+            for index in xrange(1, fmaps.shape[0], 1):
+                feat = fmaps[index] * 255
+                feat = cv.resize(feat, (rect[2], rect[3]))
+                feat = feat.astype(np.uint8)
+                
+                r = self.create_mask_labels(feat)
+                if not r is None:
+                    r = np.array(r)
+                    r[0] += (rect[0] - padding)
+                    r[1] += (rect[1] - padding)
+                    r[2] += (2 * padding)
+                    r[3] += (2 * padding)
+                    bboxs.append((r, index))
+            #vis_square(fmaps)
+            
+        #! generate color
+        colors = []
+        for index in xrange(0, feature_maps.shape[1]):
+            colors.append(np.array([random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]))
+
+        for bbox in bboxs:
+            x,y,w,h = bbox[0]
+            l = bbox[1]
+            cv.rectangle(input_image, (x, y), (x+w, y+h), colors[l], 5)
+
+        cv.namedWindow('detection', cv.WINDOW_NORMAL)
+        cv.imshow('detection', input_image)
+        cv.waitKey(3)
+        
+
+    def detection_window_roi(self, image, net_size,  stride = 2):
+        im_y, im_x, _ = image.shape
+        w = int(im_x / stride)
+        h = int(im_y / stride)
+        im_rois = []
+        rects = []
+        for j in xrange(0, stride, 1):
+            for i in xrange(0, stride, 1):
+                roi = image[j*h:j*h + h, i*w:i*w + w].copy()
+                roi = cv.resize(roi, net_size)
+                roi = roi.transpose((2, 0, 1))
+                im_rois.append(roi)
+
+                rects.append(np.array([i*w, j*h, w, h]))
+        #! central crop
+        cx, cy = int(im_x/2), int(im_y/2)
+        cx = cx - w/2
+        cy = cy - h/2
+        roi = image[cy:cy+h, cx:cx+w].copy()
+        roi = cv.resize(roi, net_size)
+        roi = roi.transpose((2, 0, 1))
+        im_rois.append(roi)
+        rects.append(np.array([cx, cy, w, h]))
+        return im_rois, rects
+    
+    def create_mask_labels(self, im_mask):
+        if len(im_mask.shape) is None:
+            print 'ERROR: Empty input mask'
+            return
+
+        im_gray = im_mask.copy()
+        im_gray[im_gray > 0] = 255
+
+        ##! fill the gap
+        if CV_MAJOR < str(3):
+            contour, hier = cv.findContours(im_gray.copy(), cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+        else:
+            im, contour, hier = cv.findContours(im_gray.copy(), cv.RETR_CCOMP, \
+                                                cv.CHAIN_APPROX_SIMPLE)
+
+        max_area = 0
+        index = -1
+        for i, cnt in enumerate(contour):
+            a = cv.contourArea(cnt)
+            if max_area < a:
+                max_area = a
+                index = i
+
+        rect = cv.boundingRect(contour[index]) if index > -1 else None
+        return rect
+
+     ##! end segmentation -----------------------------------------   
+
     def callback(self, image_msg):
-        self.run_detector(image_msg)
+        # self.run_detector(image_msg)
+        self.run_detector2(image_msg)
 
 
     """
@@ -292,6 +413,11 @@ class FCNObjectDetector():
         return True
 
 
+
+
+
+
+        
 def main(argv):
     try:
         rospy.init_node('fcn_object_detector', anonymous = True)

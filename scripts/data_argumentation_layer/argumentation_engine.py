@@ -624,7 +624,8 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         # im_plot = cv.applyColorMap(im_plot, cv.COLORMAP_JET)
         # cv.imshow('mask', im_plot)
 
-        return image_datum, label_datum
+        return image, mask
+        #return image_datum, label_datum
 
         
     def argument(self, num_proposals, im_bg, im_mk = None, mrect = None):
@@ -658,7 +659,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
 
             resize_flag = random.randint(0, 1)
             if resize_flag:
-                scale = random.uniform(0.7, 2)
+                scale = random.randint(1, 4)
                 w = int(w * scale)
                 h = int(h * scale)
                 im_roi = cv.resize(im_roi, (int(w), int(h)))
@@ -714,41 +715,44 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         return rgb, msk
 
 
-# c = 0
-# while True:
-#     path = '/home/krishneel/Documents/datasets/handheld_objects2/train.txt'
+c = 0
+while True:
+    path = '/home/krishneel/Documents/datasets/handheld_objects/cups/train.txt'
 
-#     lines = [line.rstrip('\n') for line in open(str(path))]
-#     idx = random.randint(0, len(lines)-1)
-#     im_path = lines[idx].split()[0]
-#     mk_path = lines[idx].split()[1]
-#     label = int(lines[idx].split()[2])
-#     x = int(float(lines[idx].split()[3]))
-#     y = int(float(lines[idx].split()[4]))
-#     w = int(float(lines[idx].split()[5]))
-#     h = int(float(lines[idx].split()[6]))
-#     rect  = np.array([x, y, w, h], dtype=np.int)
+    lines = [line.rstrip('\n') for line in open(str(path))]
+    idx = random.randint(0, len(lines)-1)
+    im_path = lines[idx].split()[0]
+    mk_path = lines[idx].split()[1]
+    label = int(lines[idx].split()[2])
+    x = int(float(lines[idx].split()[3]))
+    y = int(float(lines[idx].split()[4]))
+    w = int(float(lines[idx].split()[5]))
+    h = int(float(lines[idx].split()[6]))
+    rect  = np.array([x, y, w, h], dtype=np.int)
 
-#     ac = ArgumentationEngineMapping(path, 640, 480)
-#     im_bg = np.zeros((480, 640, 3), np.uint8)
+    ac = ArgumentationEngineMapping(path, 640, 480)
+    im_bg = np.zeros((480, 640, 3), np.uint8)
 
-#     im_bg = cv.imread(im_path)
-#     im_mk = cv.imread(mk_path, 0)
+    im_bg = cv.imread(im_path)
+    # im_mk = cv.imread(mk_path, 0)
 
-#     num_proposals = random.randint(0, 5)
-#     im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
-#     print im_bg.shape, mask.shape
-#     # mask *= 255
+    num_proposals = random.randint(0, 10)
+    # im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
+    im_bg, mask = ac.process(num_proposals, im_bg)
+    print im_bg.shape, mask.shape
+    # mask *= 255
 
-#     # mask = cv.applyColorMap(mask, cv.COLORMAP_JET)
-#     # # cv.rectangle(image, (x, y), (x+w, h+y), (0, 255,0), 5)
-#     # cv.namedWindow('image', cv.WINDOW_NORMAL)
-#     # cv.imshow('image', im_bg)
-#     # cv.imshow('mask', mask)
-#     # cv.waitKey(3)
+    # mask = cv.applyColorMap(mask, cv.COLORMAP_JET)
+    # # cv.rectangle(image, (x, y), (x+w, h+y), (0, 255,0), 5)
+    # cv.namedWindow('image', cv.WINDOW_NORMAL)
+    # cv.imshow('image', im_bg)
+    # cv.imshow('mask', mask)
+    # cv.waitKey(3)
+    im_bg *= 255
+    cv.imwrite('/home/krishneel/Desktop/img.jpg', im_bg)
 
-#     c+=1
-#     if c > 2:
-#         break
+    c+=1
+    if c > 0:
+        break
     
     
