@@ -623,7 +623,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         label_datum[0] = mask.copy()
         image_datum = image.transpose((2, 0, 1))
 
-        debug = True
+        debug = False
         if debug:
             im_plot = mask.astype(np.float)
             im_plot /= im_plot.max()
