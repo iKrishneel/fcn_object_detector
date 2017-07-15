@@ -24,5 +24,5 @@ fname=$(date "+%Y-%m-%d-%H.%M-%S")
 
 $CAFFE_ROOT/build/tools/caffe train --solver=semantic_segmentation/solver.prototxt \
     --gpu=0 \
-    --weights=/home/krishneel/caffe/models/ilsvrc14/vgg16/VGG_ILSVRC_16_layers.caffemodel \
+    --snapshot=snapshots/snapshot_iter_17093.solverstate
     2>&1 | tee -a $pkg/fcn_object_detector_$fname.log

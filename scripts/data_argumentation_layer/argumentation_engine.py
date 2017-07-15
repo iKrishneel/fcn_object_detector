@@ -604,7 +604,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
             
         image, mask = self.argument(num_proposals, im_bg, im_mk, rect)
         image, mask = self.resize_inputs(image, mask)
-    
+        
         use_color_arg = False
         if use_color_arg:
             image = self.color_space_argumentation(image)
@@ -617,13 +617,17 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         label_datum[0] = mask.copy()
         image_datum = image.transpose((2, 0, 1))
 
-        # im_plot = mask.astype(np.float)
-        # im_plot /= im_plot.max()
-        # im_plot *= 255
-        # im_plot = im_plot.astype(np.uint8)
-        # im_plot = cv.applyColorMap(im_plot, cv.COLORMAP_JET)
-        # cv.imshow('mask', im_plot)
-
+        debug = False
+        if debug:
+            im_plot = mask.astype(np.float)
+            im_plot /= im_plot.max()
+            im_plot *= 255
+            im_plot = im_plot.astype(np.uint8)
+            im_plot = cv.applyColorMap(im_plot, cv.COLORMAP_JET)
+            cv.imshow('mask', im_plot)
+            cv.imshow('image', image)
+            cv.waitKey(0)
+        
         return image_datum, label_datum
 
         

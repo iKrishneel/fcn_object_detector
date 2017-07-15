@@ -4,10 +4,10 @@ debug_info: false
 display: 20
 average_loss: 20
 lr_policy: "fixed"
-base_lr: 1e-08
-momentum: 0.99
+base_lr: 1e-10
+momentum: 0.90
 iter_size: 1
-max_iter: 10
+max_iter: 100000
 weight_decay: 1e-7
-snapshot: 1000
+snapshot: 10000
 solver_mode: GPU
