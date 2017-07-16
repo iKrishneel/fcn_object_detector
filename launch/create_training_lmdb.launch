@@ -1,5 +1,0 @@
-<launch>
- <node pkg="fcn_object_detector" type="create_training_lmdb.py"
-       name="create_training_lmdb" output="screen" >
- </node>
-</launch>

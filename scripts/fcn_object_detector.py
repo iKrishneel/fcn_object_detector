@@ -43,6 +43,7 @@ class FCNObjectDetector(object):
 
         ##! publisher setup
         self.pub_box = rospy.Publisher('/fcn_object_detector/rects', Rect, queue_size = 1)
+        self.pub_map = rospy.Publisher('/fcn_object_detector/pmap', Image, queue_size = 1)
             
         self.subscribe()
 
@@ -189,16 +190,19 @@ class FCNObjectDetector(object):
         feature_maps = self.__net.blobs['score'].data
 
         # print("--- %s seconds ---" % (time.time() - start_time))
-
         
         feature_maps[feature_maps < self.__prob_thresh] = 0
 
+        pmap = np.zeros((input_image.shape[0], input_image.shape[1]), dtype=np.uint8)
         bboxs = []
         for fmaps, rect in zip(feature_maps, rects):
             for index in xrange(1, fmaps.shape[0], 1):
                 feat = fmaps[index] * 255
                 feat = cv.resize(feat, (rect[2], rect[3]))
                 feat = feat.astype(np.uint8)
+
+                x,y,w,h = rect
+                pmap[y:y+h, x:x+w] |= feat[0:h, 0:w].copy()
                 
                 r = self.create_mask_labels(feat)
                 if not r is None:
@@ -209,7 +213,7 @@ class FCNObjectDetector(object):
                     r[3] += (2 * padding)
                     bboxs.append((r, index))
             #vis_square(fmaps)
-            
+
         #! generate color
         colors = []
         for index in xrange(0, feature_maps.shape[1]):
@@ -220,6 +224,10 @@ class FCNObjectDetector(object):
             l = bbox[1]
             cv.rectangle(input_image, (x, y), (x+w, y+h), colors[l], 5)
 
+        ros_img = self.__bridge.cv2_to_imgmsg(pmap, "mono8")
+        ros_img.header = image_msg.header
+        self.pub_map.publish(ros_img)
+            
         cv.namedWindow('detection', cv.WINDOW_NORMAL)
         cv.imshow('detection', input_image)
         cv.waitKey(3)
