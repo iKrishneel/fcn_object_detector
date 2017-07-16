@@ -2,6 +2,7 @@
  
  <include file="$(find point_cloud_image_creator)/launch/point_cloud_image_creator.launch" >
    <arg name="input" value="/cluster_decomposer_final/debug_output" />
+   <arg name="info" value="/multisense/depth/camera_info" />
  </include>
    
  <arg name="input_cloud" default="/camera/depth_registered/points" />
@@ -17,18 +18,18 @@
    <remap from="input_model" to="/multi_plane_estimate/output_refined_coefficients" />
  </node>
 
- <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer"
-       name="fcn_segmentation_decomposer" >
-   <remap from="~input" to="output/points" />
-   <remap from="~target" to="output/indices" />
+ <!-- <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer" -->
+ <!--       name="fcn_segmentation_decomposer" > -->
+ <!--   <remap from="~input" to="output/points" /> -->
+ <!--   <remap from="~target" to="output/indices" /> -->
   
-   <remap from="~align_planes" to="/multi_plane_estimate/output_refined_polygon" />
-   <remap from="~align_planes_coefficients" to="/multi_plane_estimate/output_refined_coefficients" />
-   <param name="align_boxes" value="true" />
-   <param name="use_pca" value="true" />
-   <param name="publish_clouds" value="true" />
-   <param name="publish_tf" value="true" />
- </node>
+ <!--   <remap from="~align_planes" to="/multi_plane_estimate/output_refined_polygon" /> -->
+ <!--   <remap from="~align_planes_coefficients" to="/multi_plane_estimate/output_refined_coefficients" /> -->
+ <!--   <param name="align_boxes" value="true" /> -->
+ <!--   <param name="use_pca" value="true" /> -->
+ <!--   <param name="publish_clouds" value="true" /> -->
+ <!--   <param name="publish_tf" value="true" /> -->
+ <!-- </node> -->
 
  
  
