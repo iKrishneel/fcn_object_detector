@@ -14,8 +14,13 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
 )
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3 REQUIRED)
 
+find_package(PCL 1.8 REQUIRED)
+
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -106,10 +111,10 @@ catkin_python_setup()
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES fcn_object_detector
-#  CATKIN_DEPENDS cv_bridge roscpp rospy sensor_msgs
-#  DEPENDS system_lib
+ INCLUDE_DIRS include
+ LIBRARIES fcn_object_detector
+ CATKIN_DEPENDS cv_bridge roscpp rospy sensor_msgs
+ DEPENDS system_lib
 )
 
 ###########
@@ -120,7 +125,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-  ${catkin_INCLUDE_DIRS}
+  include ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -134,16 +139,17 @@ include_directories(
 # add_dependencies(fcn_object_detector ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(fcn_object_detector_node src/fcn_object_detector_node.cpp)
+# add_executable(fcn_point_map_node src/fcn_object_detector_node.cpp)
+add_executable(fcn_point_map_node src/fcn_point_map_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(fcn_object_detector_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(fcn_point_map_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(fcn_object_detector_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(fcn_point_map_node
+  ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS}
+  )
 
 #############
 ## Install ##
@@ -160,7 +166,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS fcn_object_detector fcn_object_detector_node
+# install(TARGETS fcn_object_detector fcn_point_map_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

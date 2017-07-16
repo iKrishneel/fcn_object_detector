@@ -1,0 +1,19 @@
+<launch>
+ 
+ <include file="$(find point_cloud_image_creator)/launch/point_cloud_image_creator.launch" >
+   <arg name="input" value="/cluster_decomposer_final/debug_output" />
+ </include>
+   
+ <arg name="input_cloud" default="/camera/depth_registered/points" />
+ <arg name="input_mask" default="/cloud_image/output/image" />
+ <arg name="input_pmap" default="/fcn_object_detector/pmap" />
+
+ <node pkg="fcn_object_detector" type="fcn_point_map_node"
+       name="fcn_point_map_node" output="screen" >
+   <remap from="input_cloud" to="$(arg input_cloud)" />
+   <remap from="input_mask" to="$(arg input_mask)" />
+   <remap from="input_pmap" to="$(arg input_pmap)" />
+ </node>
+ 
+ 
+</launch>
