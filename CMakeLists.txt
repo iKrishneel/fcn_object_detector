@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   roscpp
   message_filters
+  pcl_conversions
 )
 
 find_package(OpenCV 3 REQUIRED)

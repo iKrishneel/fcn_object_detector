@@ -175,7 +175,7 @@ class FCNObjectDetector(object):
         padding = 10
         cv_img = self.demean_rgb_image(cv_img)
 
-        im_rois, rects = self.detection_window_roi(cv_img, (int(self.__im_width), int(self.__im_height)))
+        im_rois, rects = self.detection_window_roi(cv_img, (int(self.__im_width), int(self.__im_height)), 1)
         
         batch_size = len(im_rois)
         self.__net.blobs['data'].reshape(batch_size, 3, self.__im_height, self.__im_width)
