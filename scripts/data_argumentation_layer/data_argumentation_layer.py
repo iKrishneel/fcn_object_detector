@@ -97,7 +97,7 @@ class DataArgumentationLayer(caffe.Layer):
 
                 num_proposals = random.randint(1, 3)
                 img, mask, rects, labels = self.__gen_ae.process(num_proposals, im_rgb)
-            
+                
             img, rects = self.__ae.random_argumentation(img, rects)
             img, rects = self.__ae.resize_image_and_labels(img, rects)
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
@@ -169,8 +169,6 @@ class DataArgumentationLayer(caffe.Layer):
         labels = np.array(labels)
         label_unique, label_indices = np.unique(labels, return_index=False, \
                                                 return_inverse=True, return_counts=False)
-        #! shift to one indices
-        label_indices += 1
 
         #! create new label manifest
         manifest_fn = 'snapshots/labels/labels_' + time.strftime("%Y%m%d%H%M%S") + '.txt'
