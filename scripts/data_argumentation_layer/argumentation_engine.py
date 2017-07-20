@@ -591,8 +591,8 @@ class ArgumentationEngineFCN(object):
 ##! mapping labels to background
 
 
-class ArgumentationEngineMapping(ArgumentationEngineFCN):
-    def __init__(self, img_paths, mask_paths, labels, rects, im_width, im_height):
+class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
+    def __init__(self, img_paths, mask_paths, labels, rects, im_width, im_height, bbox_detect = False):
         self.__in_size = (im_width, im_height)
         self.__iou_thresh = 0.05
         self.__max_counter = 100
@@ -602,13 +602,18 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
         self.__mask_paths = mask_paths
         self.__labels = labels
         self.__rects = rects
-        # self.__dataset_list = [line.rstrip('\n') for line in open(str(train_fn))]
+
+        self.__bbox_detect = bbox_detect
 
     def process(self, num_proposals, im_bg, im_mk = None, rect = None):
         if len(im_bg.shape) is None:
             return
             
-        image, mask = self.argument(num_proposals, im_bg, im_mk, rect)
+        image, mask, rects = self.argument(num_proposals, im_bg, im_mk, rect)
+
+        if self.__bbox_detect:
+            return image, mask, rects
+        
         image, mask = self.resize_inputs(image, mask)
         
         use_color_arg = False
@@ -646,18 +651,9 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
             mask_output = im_mk.copy()
         if not mrect is None:
             flag_position.append(mrect)
-            
+
         for index in xrange(0, num_proposals, 1):
             idx = random.randint(0, len(self.__img_paths)-1)
-            # im_path = self.__dataset_list[idx].split()[0]
-            # mk_path = self.__dataset_list[idx].split()[1]
-            # label = int(self.__dataset_list[idx].split()[2])
-            # x = int(float(self.__dataset_list[idx].split()[3]))
-            # y = int(float(self.__dataset_list[idx].split()[4]))
-            # w = int(float(self.__dataset_list[idx].split()[5]))
-            # h = int(float(self.__dataset_list[idx].split()[6]))
-            # rect  = np.array([x, y, w, h], dtype=np.int)
-            
             im_path = self.__img_paths[idx]
             mk_path = self.__mask_paths[idx]
             label = self.__labels[idx]
@@ -667,10 +663,17 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
             image = cv.imread(im_path)
             mask = cv.imread(mk_path)
             mask[mask > 0] = 255
-    
+
+            flip_flag = random.randint(-1, 2)
+            if flip_flag > -2 and flip_flag < 2:
+                rect_copy = rect.copy()
+                image, rect = self.flip_image(image, [rect], flip_flag)
+                mask, _ = self.flip_image(mask, [rect_copy], flip_flag)
+                x,y,w,h = rect[0]
+            
             im_roi = image[y:y+h, x:x+w].copy()
             im_msk = mask[y:y+h, x:x+w].copy()
-
+            
             resize_flag = random.randint(0, 1)
             if resize_flag:
                 scale = random.uniform(1.0, 2.2)
@@ -679,7 +682,6 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
                 im_roi = cv.resize(im_roi, (int(w), int(h)))
                 im_msk = cv.resize(im_msk, (int(w), int(h)))
                 rect  = np.array([x, y, w, h], dtype=np.int)
-
             
             cx, cy = random.randint(0, im_x - 1), random.randint(0, im_y-1)
             cx = cx - ((cx + w) - im_x) if cx + w > im_x - 1 else cx
@@ -718,7 +720,22 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN):
                             mask_output[ny, nx] = label
         
                 flag_position.append(nrect)
-        return (img_output, mask_output)
+
+
+        ###! debug
+        debug = False
+        if debug:
+            for r in flag_position:
+                x,y,w,h = r
+                cv.rectangle(img_output, (x,y), (x+w, h+y), (0, 255, 0), 3)
+                cv.namedWindow('roi', cv.WINDOW_NORMAL)
+                cv.imshow('roi', img_output)
+            mask_output *= 255
+            cv.imshow('mask', mask_output)
+            cv.waitKey(0)
+        ###! end-debug
+                
+        return (img_output, mask_output, np.array(flag_position))
 
 
     def resize_inputs(self, rgb, mask):
@@ -745,15 +762,20 @@ while True:
     h = int(float(lines[idx].split()[6]))
     rect  = np.array([x, y, w, h], dtype=np.int)
 
-    ac = ArgumentationEngineMapping(path, 640, 480)
+    im_paths = [im_path]
+    mask_paths = [mk_path]
+    labels = [label]
+    rects = [rect]
+    
+    ac = ArgumentationEngineMapping(im_paths, mask_paths, labels, rects, 640, 480, True)
     im_bg = np.zeros((480, 640, 3), np.uint8)
 
     im_bg = cv.imread(im_path)
     # im_mk = cv.imread(mk_path, 0)
 
-    num_proposals = random.randint(0, 10)
+    num_proposals = random.randint(1, 10)
     # im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
-    im_bg, mask = ac.process(num_proposals, im_bg)
+    im_bg, mask, rects = ac.process(num_proposals, im_bg)
     print im_bg.shape, mask.shape
     # mask *= 255
 
@@ -769,4 +791,4 @@ while True:
     c+=1
     if c > 0:
         break
-"""        
+ """        

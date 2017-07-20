@@ -133,21 +133,35 @@ class DataArgumentationLayer(caffe.Layer):
         lines = [line.rstrip('\n')
                  for line in open(self.train_fn)
         ]
-        im_paths = []
-        rects = []
+        img_paths = []
         labels = []
-        for line in lines:
-            segment = line.split(',')
-            im_paths.append(str(segment[0]))
-            labs = []
-            bbox = []
-            for index in xrange(1, len(segment), 1):
-                seg = segment[index].split(' ')
-                bbox.append(map(int, seg[:-1]))
-                labs.append(int(seg[-1]))
-            labels.append(labs)
-            rects.append(bbox)
-        return np.array(im_paths), np.array(rects), np.array(labels)
+        rects = []
+        for index in xrange(0, len(lines), 2):
+            img_paths.append(lines[index].split()[0])
+            labels.append(int(lines[index].split()[2]))
+            x = int(float(lines[index].split()[3]))
+            y = int(float(lines[index].split()[4]))
+            w = int(float(lines[index].split()[5]))
+            h = int(float(lines[index].split()[6]))
+            rects.append(np.array([x, y, w, h], dtype=np.int))
+             
+        ##! create unique labels
+        labels = np.array(labels)
+        label_unique, label_indices = np.unique(labels, return_index=False, \
+                                                return_inverse=True, return_counts=False)
+        #! shift to one indices
+        label_indices += 0
+
+        #! create new label manifest
+        manifest_fn = 'snapshots/labels/labels_' + time.strftime("%Y%m%d%H%M%S") + '.txt'
+        text_file = open(str(manifest_fn), 'w')
+        for index, label in enumerate(label_unique):
+            n_label = index + 1
+            a = str(n_label) + ' ' +str(label)
+            text_file.write('%s\n'% a)
+        text_file.close()
+        
+        return np.array(img_paths), np.array(rects), label_indices, 
 
         
 """
