@@ -22,7 +22,7 @@ pkg_directory=$PWD/..
 export PYTHONPATH=$pkg_directory/scripts/data_argumentation_layer:$PYTHONPATH
 fname=$(date "+%Y-%m-%d-%H.%M-%S")
 
-$CAFFE_ROOT/build/tools/caffe train --solver=semantic_segmentation/solver.prototxt \
+$CAFFE_ROOT/build/tools/caffe train --solver=bounding_box/solver.prototxt \
     --gpu=0 \
-    --snapshot=snapshots/snapshot_iter_17093.solverstate
+    --weights=/home/krishneel/caffe/models/ilsvrc14/vgg16/VGG_ILSVRC_16_layers.caffemodel \
     2>&1 | tee -a $pkg/fcn_object_detector_$fname.log

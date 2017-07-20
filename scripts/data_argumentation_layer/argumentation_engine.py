@@ -746,7 +746,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
         return rgb, msk
 
 
- """        
+"""        
 c = 0
 while True:
     path = '/home/krishneel/Documents/datasets/handheld_objects/cups/train.txt'
@@ -804,4 +804,4 @@ while True:
     c+=1
     if c > 0:
         break
-        """        
+"""        
