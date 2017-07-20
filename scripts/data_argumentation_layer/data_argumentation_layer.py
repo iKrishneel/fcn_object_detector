@@ -37,9 +37,13 @@ class DataArgumentationLayer(caffe.Layer):
                 raise ValueError('Provide the dataset textfile')
 
             else:
-                self.img_paths, self.rects, self.labels = self.read_and_decode_lines()
+                # self.img_paths, self.rects, self.labels = self.read_and_decode_lines()
+                self.img_paths, self.mask_imgs, self.labels, self.rects = self.read_data_from_textfile2()
                 self.idx = 0 #! start index
 
+            self.__gen_ae = ae.ArgumentationEngineMapping(self.img_paths, self.mask_imgs, \
+                                                          self.labels, self.rects, \
+                                                          self.image_size_x, self.image_size_y, True)
             self.__ae = ae.ArgumentationEngine(self.image_size_x, self.image_size_y, \
                                                self.stride, self.num_classes)
 
@@ -68,22 +72,34 @@ class DataArgumentationLayer(caffe.Layer):
         
 
     def forward(self, bottom, top):
+
+        use_mapping = True
         for index in xrange(0, self.batch_size, 1):
             img = cv.imread(self.img_paths[self.idx])
             rects = self.rects[self.idx]
             labels = self.labels[self.idx]
+
+            if use_mapping:
+                rects = []
+                im_rgb = cv.imread('/home/krishneel/Desktop/frame0000.jpg')
+                w = im_rgb.shape[1] / 2
+                h = im_rgb.shape[0] / 2
+                x = random.randint(0, w)
+                y = random.randint(0, h)
+                x = x - (x+w - im_rgb.shape[1]) if x+w > im_rgb.shape[1] else x
+                y = y - (y+h - im_rgb.shape[0]) if y+h > im_rgb.shape[0] else y
+                im_rgb = im_rgb[y:y+h, x:x+w]
+                
+                im_mask = cv.imread(self.mask_imgs[self.idx])
+                im_rgb = cv.resize(im_rgb, (im_mask.shape[1], im_mask.shape[0]))
+
+                num_proposals = random.randint(1, 3)
+                img, mask, rects = self.__gen_ae.process(num_proposals, im_rgb)
             
             img, rects = self.__ae.random_argumentation(img, rects)
             img, rects = self.__ae.resize_image_and_labels(img, rects)
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
             self.__ae.bounding_box_parameterized_labels(img, rects, labels)
-
-            ##!
-            # x,y,w,h = rects[0]
-            # cv.rectangle(img, (x,y), (x+w, y+h), (0, 255,0), 4)
-            # cv.imshow("img", img)
-            # cv.waitKey(0)
-            ##!
             
             img = img.swapaxes(2, 0)
             img = img.swapaxes(2, 1)
@@ -129,15 +145,17 @@ class DataArgumentationLayer(caffe.Layer):
             labels.append(label)
         return np.array(img_paths), np.array(rects), np.array(labels)
 
-    def read_and_decode_lines2(self):
+    def read_data_from_textfile2(self):
         lines = [line.rstrip('\n')
                  for line in open(self.train_fn)
         ]
         img_paths = []
+        mask_imgs = []
         labels = []
         rects = []
         for index in xrange(0, len(lines), 2):
             img_paths.append(lines[index].split()[0])
+            mask_imgs.append(lines[index].split()[1])
             labels.append(int(lines[index].split()[2]))
             x = int(float(lines[index].split()[3]))
             y = int(float(lines[index].split()[4]))
@@ -150,7 +168,7 @@ class DataArgumentationLayer(caffe.Layer):
         label_unique, label_indices = np.unique(labels, return_index=False, \
                                                 return_inverse=True, return_counts=False)
         #! shift to one indices
-        label_indices += 0
+        label_indices += 1
 
         #! create new label manifest
         manifest_fn = 'snapshots/labels/labels_' + time.strftime("%Y%m%d%H%M%S") + '.txt'
@@ -161,7 +179,8 @@ class DataArgumentationLayer(caffe.Layer):
             text_file.write('%s\n'% a)
         text_file.close()
         
-        return np.array(img_paths), np.array(rects), label_indices, 
+        return np.array(img_paths), np.array(mask_imgs), label_indices, np.array(rects)
+
 
         
 """

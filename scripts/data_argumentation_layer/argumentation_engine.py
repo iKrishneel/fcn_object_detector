@@ -319,7 +319,7 @@ class ArgumentationEngine(object):
     """
     def rotate_image_with_rect(self, image, rects):
         center = (image.shape[1]/2, image.shape[0]/2)
-        angle = float(random.randint(-50, 50))  ##! TODO: add as hyperparam
+        angle = float(random.randint(-5, 5))  ##! TODO: add as hyperparam
         rot_mat = cv.getRotationMatrix2D(center, angle, 1)
         im_rot = cv.warpAffine(image, rot_mat, (image.shape[1], image.shape[0]))
         
@@ -746,7 +746,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
         return rgb, msk
 
 
-"""        
+ """        
 c = 0
 while True:
     path = '/home/krishneel/Documents/datasets/handheld_objects/cups/train.txt'
@@ -776,6 +776,19 @@ while True:
     num_proposals = random.randint(1, 10)
     # im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
     im_bg, mask, rects = ac.process(num_proposals, im_bg)
+
+    ae = ArgumentationEngine(448/2, 448/2, 16, 1)
+    img2, rects2 = ae.random_argumentation(im_bg, rects)
+    img2, rects2 = ae.resize_image_and_labels(img2, rects2)
+
+    for r in rects2:
+        x,y,w,h = r
+        cv.rectangle(img2, (x,y), (x+w, h+y), (0, 255, 0), 3)
+    cv.namedWindow('roi', cv.WINDOW_NORMAL)
+    cv.imshow('roi', img2)
+    cv.waitKey(0)
+    
+
     print im_bg.shape, mask.shape
     # mask *= 255
 
@@ -791,4 +804,4 @@ while True:
     c+=1
     if c > 0:
         break
- """        
+        """        
