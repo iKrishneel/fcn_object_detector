@@ -609,10 +609,10 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
         if len(im_bg.shape) is None:
             return
             
-        image, mask, rects = self.argument(num_proposals, im_bg, im_mk, rect)
+        image, mask, rects, labels = self.argument(num_proposals, im_bg, im_mk, rect)
 
         if self.__bbox_detect:
-            return image, mask, rects
+            return image, mask, rects, labels
         
         image, mask = self.resize_inputs(image, mask)
         
@@ -652,6 +652,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
         if not mrect is None:
             flag_position.append(mrect)
 
+        labels = []
         for index in xrange(0, num_proposals, 1):
             idx = random.randint(0, len(self.__img_paths)-1)
             im_path = self.__img_paths[idx]
@@ -720,7 +721,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
                             mask_output[ny, nx] = label
         
                 flag_position.append(nrect)
-
+                labels.append(label)
 
         ###! debug
         debug = False
@@ -735,7 +736,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
             cv.waitKey(0)
         ###! end-debug
                 
-        return (img_output, mask_output, np.array(flag_position))
+        return (img_output, mask_output, np.array(flag_position), np.array(labels))
 
 
     def resize_inputs(self, rgb, mask):
@@ -775,8 +776,10 @@ while True:
 
     num_proposals = random.randint(1, 10)
     # im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
-    im_bg, mask, rects = ac.process(num_proposals, im_bg)
+    im_bg, mask, rects, labels = ac.process(num_proposals, im_bg)
 
+    print labels
+    
     ae = ArgumentationEngine(448/2, 448/2, 16, 1)
     img2, rects2 = ae.random_argumentation(im_bg, rects)
     img2, rects2 = ae.resize_image_and_labels(img2, rects2)

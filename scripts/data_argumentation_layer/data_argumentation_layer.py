@@ -81,6 +81,8 @@ class DataArgumentationLayer(caffe.Layer):
 
             if use_mapping:
                 rects = []
+                labels = []
+                
                 im_rgb = cv.imread('/home/krishneel/Desktop/frame0000.jpg')
                 w = im_rgb.shape[1] / 2
                 h = im_rgb.shape[0] / 2
@@ -94,7 +96,7 @@ class DataArgumentationLayer(caffe.Layer):
                 im_rgb = cv.resize(im_rgb, (im_mask.shape[1], im_mask.shape[0]))
 
                 num_proposals = random.randint(1, 3)
-                img, mask, rects = self.__gen_ae.process(num_proposals, im_rgb)
+                img, mask, rects, labels = self.__gen_ae.process(num_proposals, im_rgb)
             
             img, rects = self.__ae.random_argumentation(img, rects)
             img, rects = self.__ae.resize_image_and_labels(img, rects)
