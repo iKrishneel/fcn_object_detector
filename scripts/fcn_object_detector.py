@@ -64,9 +64,17 @@ class FCNObjectDetector(object):
         caffe.set_device(self.__device_id)
         caffe.set_mode_gpu()
 
-        # cv_img = self.demean_rgb_image(cv_img)
-        # cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
-        self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', cv_img)
+        
+        # cv_img = cv_img.astype(np.float32)
+        # cv_img /= cv_img.max()
+        cv_img = self.demean_rgb_image(cv_img)
+        cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
+        cv_img = cv_img.transpose((2, 0, 1))
+        self.__net.blobs['data'].data[0][...] = cv_img
+        
+
+        # self.__net.blobs['data'].data[...] = self.__transformer.preprocess('data', cv_img)
+        
         output = self.__net.forward()
 
         probability_map = self.__net.blobs['coverage'].data[0]
@@ -339,7 +347,7 @@ class FCNObjectDetector(object):
     def gridbox_to_boxes(self, net_cvg, net_boxes, prob_thresh):
         im_sz_x = self.__im_width
         im_sz_y = self.__im_height
-        stride = 16
+        stride = 16/2
 
         grid_sz_x = int(im_sz_x / stride)
         grid_sz_y = int(im_sz_y / stride)
