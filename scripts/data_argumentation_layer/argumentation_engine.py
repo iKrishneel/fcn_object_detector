@@ -64,7 +64,7 @@ class ArgumentationEngine(object):
         
         self.__jc = JaccardCoeff()
         self.FORE_PROB_ = np.float32(1.0)
-        self.FLT_EPSILON_ = 0.5 #sys.float_info.epsilon
+        self.FLT_EPSILON_ = 0.1 #sys.float_info.epsilon
 
     def bounding_box_parameterized_labels(self, img, rects, labels):
         boxes = self.grid_region(img, self.__stride)
@@ -140,12 +140,14 @@ class ArgumentationEngine(object):
     """
     Function random argumentation of images
     """     
-    def random_argumentation(self, image, rects): 
+    def random_argumentation(self, image, rects, label_map = None): 
         
         #! flip image
         flip_flag = random.randint(-1, 2)
         if flip_flag < 2 and flip_flag > -2:
             img_flip, rect_flips = self.flip_image(image.copy(), rects, flip_flag)
+            if not label_map is None:
+                label_map[:, :, 0] = cv.flip(label_map[:, :, 0], flip_flag)                
         else:
             img_flip = image.copy()
             rect_flips = rects
@@ -174,11 +176,16 @@ class ArgumentationEngine(object):
         img_flip = self.color_space_argumentation(img_flip)
 
         #! rotate the image
-        rot_image, rot_rects = self.rotate_image_with_rect(img_flip, rect_flips)
-
+        rotate_img = False
+        if rotate_img:
+            rot_image, rot_rects = self.rotate_image_with_rect(img_flip, rect_flips)
+        else:
+            rot_image = img_flip.copy()
+            rot_rects = rect_flips
+        
         #! normalize image
         rot_image = self.demean_rgb_image(rot_image)
-        return (rot_image, rot_rects)
+        return (rot_image, rot_rects, label_map)
 
     """
     Function to crop image and the resize the rect
@@ -747,7 +754,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
         return rgb, msk
 
 
-"""        
+"""
 c = 0
 while True:
     path = '/home/krishneel/Documents/datasets/handheld_objects/cups/train.txt'
@@ -768,7 +775,7 @@ while True:
     labels = [label]
     rects = [rect]
     
-    ac = ArgumentationEngineMapping(im_paths, mask_paths, labels, rects, 640, 480, True)
+    ac = ArgumentationEngineMapping(im_paths, mask_paths, labels, rects, 320, 320, True)
     im_bg = np.zeros((480, 640, 3), np.uint8)
 
     im_bg = cv.imread(im_path)
@@ -777,13 +784,23 @@ while True:
     num_proposals = random.randint(1, 10)
     # im_bg, mask = ac.process(num_proposals, im_bg,im_mk, rect)
     im_bg, mask, rects, labels = ac.process(num_proposals, im_bg)
-
-    print labels
     
-    ae = ArgumentationEngine(448/2, 448/2, 16, 1)
-    img2, rects2 = ae.random_argumentation(im_bg, rects)
+    ae = ArgumentationEngine(320, 240, 16, 1)
+    img2, rects2, label_map = ae.random_argumentation(im_bg, rects, mask)    
     img2, rects2 = ae.resize_image_and_labels(img2, rects2)
+    
+    
+    mask = cv. resize(label_map[:, :, 0].copy(), (320, 240), interpolation = cv.INTER_NEAREST)
+    label_datum = np.zeros((240, 320, 1), np.uint8)
+    label_datum[:, :, 0] = mask
 
+    print img2.shape, " ", mask.shape, " ", label_datum.shape
+    
+    import matplotlib.pylab as plt
+    plt.imshow(mask); plt.show()
+    plt.imshow(label_datum[:,:,0]); plt.show()
+
+    
     for r in rects2:
         x,y,w,h = r
         cv.rectangle(img2, (x,y), (x+w, h+y), (0, 255, 0), 3)
@@ -807,4 +824,5 @@ while True:
     c+=1
     if c > 0:
         break
-"""        
+
+"""

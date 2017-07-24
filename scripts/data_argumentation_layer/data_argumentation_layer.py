@@ -64,7 +64,8 @@ class DataArgumentationLayer(caffe.Layer):
         channels = int(self.num_classes * channel_stride)
         
         top[0].reshape(n_images, 3, self.image_size_y, self.image_size_x)
-        top[1].reshape(n_images, self.num_classes, out_size_y, out_size_x) #! cvg labels  # 1
+        top[1].reshape(n_images, 1, self.image_size_y, self.image_size_x) #! cvg labels  # 1
+        # top[1].reshape(n_images, self.num_classes, out_size_y, out_size_x) #! cvg labels  # 1
         top[2].reshape(n_images, channels, out_size_y, out_size_x) #! bbox labels # 4
         top[3].reshape(n_images, channels, out_size_y, out_size_x) #! size labels # 4
         top[4].reshape(n_images, channels, out_size_y, out_size_x) #! obj labels  # 4
@@ -78,7 +79,7 @@ class DataArgumentationLayer(caffe.Layer):
             img = cv.imread(self.img_paths[self.idx])
             rects = self.rects[self.idx]
             labels = self.labels[self.idx]
-
+            im_mask = None
             if use_mapping:
                 rects = []
                 labels = []
@@ -96,10 +97,10 @@ class DataArgumentationLayer(caffe.Layer):
                 im_rgb = cv.resize(im_rgb, (im_mask.shape[1], im_mask.shape[0]))
 
                 num_proposals = random.randint(1, 3)
-                img, mask, rects, labels = self.__gen_ae.process(num_proposals, im_rgb)
+                img, im_mask, rects, labels = self.__gen_ae.process(num_proposals, im_rgb)
                 
-            img, rects = self.__ae.random_argumentation(img, rects)
-            img, rects = self.__ae.resize_image_and_labels(img, rects)
+            img, rects, label_map = self.__ae.random_argumentation(img, rects, im_mask)
+            img, rects = self.__ae.resize_image_and_labels(img, rects)            
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
             self.__ae.bounding_box_parameterized_labels(img, rects, labels)
             
@@ -107,12 +108,22 @@ class DataArgumentationLayer(caffe.Layer):
             img = img.swapaxes(2, 1)
 
             top[0].data[index] = img
-            top[1].data[index] = foreground_labels.copy()
+            # top[1].data[index] = foreground_labels.copy()
             top[2].data[index] = boxes_labels.copy()
             top[3].data[index] = size_labels.copy()
             top[4].data[index] = obj_labels.copy()
             top[5].data[index] = coverage_label.copy()
 
+            ##! create mask
+            mask = cv. resize(label_map[:, :, 0].copy(), (self.image_size_x, self.image_size_y), \
+                              interpolation = cv.INTER_NEAREST)
+            
+            label_datum = np.zeros((self.image_size_x, self.image_size_y, 1), np.uint8)
+            label_datum[:, :, 0] = mask.copy()
+            label_datum = label_datum.transpose((2, 0, 1))
+            top[1].data[index] = label_datum.copy()
+            # end mask
+            
             self.idx = random.randint(0, (len(self.img_paths))-1)
 
     def backward(self, top, propagate_down, bottom):

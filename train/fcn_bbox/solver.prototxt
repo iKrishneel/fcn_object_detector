@@ -1,0 +1,13 @@
+net: "fcn_bbox/train_val.prototxt"
+snapshot_prefix: "snapshots/snapshot"
+debug_info: false
+display: 20
+average_loss: 20
+lr_policy: "fixed"
+base_lr: 1e-10
+momentum: 0.90
+iter_size: 1
+max_iter: 1
+weight_decay: 1e-7
+snapshot: 10000
+solver_mode: GPU
