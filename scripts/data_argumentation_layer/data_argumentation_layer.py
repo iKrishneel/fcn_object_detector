@@ -73,7 +73,6 @@ class DataArgumentationLayer(caffe.Layer):
         
 
     def forward(self, bottom, top):
-
         use_mapping = True
         for index in xrange(0, self.batch_size, 1):
             img = cv.imread(self.img_paths[self.idx])
@@ -104,10 +103,7 @@ class DataArgumentationLayer(caffe.Layer):
             foreground_labels, boxes_labels, size_labels, obj_labels, coverage_label = \
             self.__ae.bounding_box_parameterized_labels(img, rects, labels)
             
-            img = img.swapaxes(2, 0)
-            img = img.swapaxes(2, 1)
-
-            top[0].data[index] = img
+            top[0].data[index] = img.transpose((2, 0, 1))
             # top[1].data[index] = foreground_labels.copy()
             top[2].data[index] = boxes_labels.copy()
             top[3].data[index] = size_labels.copy()
@@ -121,6 +117,7 @@ class DataArgumentationLayer(caffe.Layer):
             label_datum = np.zeros((self.image_size_x, self.image_size_y, 1), np.uint8)
             label_datum[:, :, 0] = mask.copy()
             label_datum = label_datum.transpose((2, 0, 1))
+            
             top[1].data[index] = label_datum.copy()
             # end mask
             

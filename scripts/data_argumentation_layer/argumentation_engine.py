@@ -725,7 +725,7 @@ class ArgumentationEngineMapping(ArgumentationEngineFCN, ArgumentationEngine):
                         nx, ny = i + cx, j + cy
                         if im_msk[j, i, 0] > 0 and nx < im_x and ny < im_y:
                             img_output[ny, nx] = im_roi[j, i]
-                            mask_output[ny, nx] = label
+                            mask_output[ny, nx] = label + 1 ##! check this
         
                 flag_position.append(nrect)
                 labels.append(label)
