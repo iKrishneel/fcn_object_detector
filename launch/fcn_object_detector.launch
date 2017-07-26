@@ -7,7 +7,9 @@
 
   <arg name="pretrained_weights" default="$(find fcn_object_detector)/models/snapshot_iter_1000.caffemodel" />
   <arg name="deployment_prototxt" default="$(find fcn_object_detector)/models/deploy.prototxt" />
-  
+
+  <arg name="manifest" default="" />  
+
  <node pkg="fcn_object_detector" type="fcn_object_detector.py"
        name="fcn_object_detector" output="screen" >
    <remap from="image" to="$(arg image)" />
@@ -17,5 +19,6 @@
    <param name="detection_threshold" value="$(arg detection_threshold)" />
    <param name="min_boxes" value="$(arg min_boxes)" />
    <param name="nms_eps" value="$(arg nms_eps)" />
+   <param name="manifest" value="$(arg manifest)" />
  </node>
 </launch>

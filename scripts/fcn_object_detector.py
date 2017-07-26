@@ -36,11 +36,15 @@ class FCNObjectDetector(object):
         self.__weights = rospy.get_param('~pretrained_weights', None)
         self.__model_proto = rospy.get_param('~deployment_prototxt', None)
         self.__device_id = rospy.get_param('device_id', 0)
-
+        
         if self.is_file_valid():
             self.load_caffe_model()
             rospy.loginfo('DETECTOR SETUP SUCCESSFUL')
 
+        self.__label_manifest = rospy.get_param('~manifest', None)
+        self.load_label_manifest()
+        print self.__colors
+        
         ##! publisher setup
         self.pub_box = rospy.Publisher('/fcn_object_detector/rects', Rect, queue_size = 1)
         self.pub_map = rospy.Publisher('/fcn_object_detector/pmap', Image, queue_size = 1)
@@ -68,8 +72,8 @@ class FCNObjectDetector(object):
         ### just center
         h, w, c = cv_img.shape
         cx, cy = w/2, h/2
-        cv_img = cv_img[cy-cy/2:(cy-cy/2)+ h/2, cx-cx/2:(cx-cx/2) + w/2]
-        input_image = cv_img.copy()
+        #cv_img = cv_img[cy-cy/2:(cy-cy/2)+ h/2, cx-cx/2:(cx-cx/2) + w/2]
+        #input_image = cv_img.copy()
         #### end
         
         cv_img = self.demean_rgb_image(cv_img)
@@ -88,13 +92,13 @@ class FCNObjectDetector(object):
         # self.vis_square(probability_map)
         
         object_boxes = []
-        label_color = []
+        # label_color = []
         object_labels = []
-        for i in xrange(0, 10, 1):
-            r = random.random() * 255
-            g = random.random() * 255
-            b = random.random() * 255
-            label_color.append((b, g, r))
+        # for i in xrange(0, 10, 1):
+        #     r = random.random() * 255
+        #     g = random.random() * 255
+        #     b = random.random() * 255
+        #     label_color.append((b, g, r))
             
         
         for index, p_map in enumerate(probability_map):
@@ -115,7 +119,7 @@ class FCNObjectDetector(object):
 
                 # print index
             
-        label_color = np.asarray(label_color, dtype=np.float)
+        # label_color = np.asarray(label_color, dtype=np.float)
         object_boxes = np.asarray(object_boxes, dtype=np.int)
         object_labels = np.asarray(object_labels, dtype=np.int)
 
@@ -138,8 +142,9 @@ class FCNObjectDetector(object):
         im_out = cv_img.copy()
         [
             [
-                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), label_color[label-1], -1),
-                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4)
+                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), self.__colors[label][0], -1),
+                cv.rectangle(cv_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 4),
+                cv.putText(cv_img, self.__colors[label][1], (box[0], box[1]), cv.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2, cv.LINE_8)
             ] for box, label in zip(object_boxes, object_labels)
         ]
 
@@ -433,9 +438,27 @@ class FCNObjectDetector(object):
 
         return True
 
-
-
-
+    def load_label_manifest(self):
+        self.__colors = []
+        if self.__label_manifest is None or not os.path.isfile(self.__label_manifest):
+            rospy.logwarn('Object Label Names not Provided!')
+            
+            out_size = self.__net.blobs['score'].data.shape[1]
+            for index in xrange(0, out_size, 1):
+                self.__colors.append((np.array([random.randint(0, 255), \
+                                              random.randint(0, 255), \
+                                              random.randint(0, 255)]), str('object_') + str(index-1)))
+            return
+            
+        lines = [line.rstrip('\n')
+                 for line in open(self.__label_manifest)
+        ]
+        
+        for index, line in enumerate(lines):
+            idx, _, oname = line.split(' ')
+            self.__colors.append((np.array([random.randint(0, 255), \
+                                            random.randint(0, 255), \
+                                            random.randint(0, 255)]), str(oname)))
 
 
         
