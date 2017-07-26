@@ -64,9 +64,14 @@ class FCNObjectDetector(object):
         caffe.set_device(self.__device_id)
         caffe.set_mode_gpu()
 
+
+        ### just center
+        h, w, c = cv_img.shape
+        cx, cy = w/2, h/2
+        cv_img = cv_img[cy-cy/2:(cy-cy/2)+ h/2, cx-cx/2:(cx-cx/2) + w/2]
+        input_image = cv_img.copy()
+        #### end
         
-        # cv_img = cv_img.astype(np.float32)
-        # cv_img /= cv_img.max()
         cv_img = self.demean_rgb_image(cv_img)
         cv_img = cv.resize(cv_img, (self.__im_width, self.__im_height))
         cv_img = cv_img.transpose((2, 0, 1))
@@ -77,11 +82,11 @@ class FCNObjectDetector(object):
         
         output = self.__net.forward()
 
-        probability_map = self.__net.blobs['coverage'].data[0]
-        bbox_map = self.__net.blobs['bboxes'].data[0]
+        probability_map = self.__net.blobs['pool_score'].data[0][1:]
+        bbox_map = self.__net.blobs['upscore_pool5_bbox'].data[0]
 
         # self.vis_square(probability_map)
-
+        
         object_boxes = []
         label_color = []
         object_labels = []
@@ -295,8 +300,8 @@ class FCNObjectDetector(object):
      ##! end segmentation -----------------------------------------   
 
     def callback(self, image_msg):
-        # self.run_detector(image_msg)
-        self.run_detector2(image_msg)
+        self.run_detector(image_msg)
+        # self.run_detector2(image_msg)
 
 
     """
